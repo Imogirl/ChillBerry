@@ -1,125 +1,86 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { AlertCircle, ArrowRight, Eye, EyeOff, Leaf, LockKeyhole, Mail, UserRound } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import AuthLayout from "../components/AuthLayout";
 import api from "../services/api";
 
 function Register() {
   const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
-
+  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const handleChange = (event) => {
+    setFormData((current) => ({ ...current, [event.target.name]: event.target.value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     try {
       setLoading(true);
       setMessage("");
-
       const response = await api.post("/auth/register", formData);
-
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
-
-      setMessage("Account created successfully");
-
-      setTimeout(() => {
-        navigate("/");
-      }, 1000);
+      navigate("/");
     } catch (error) {
-      setMessage(
-        error.response?.data?.message || "Something went wrong"
-      );
+      setMessage(error.response?.data?.message || "We could not create your account. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-pink-50">
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
-        <h1 className="mb-2 text-center text-4xl font-bold text-pink-500">
-          Create Account
-        </h1>
+    <AuthLayout mode="register">
+      <div className="auth-form">
+        <Link to="/" className="auth-mobile-brand brand-lockup">
+          <span className="brand-mark"><Leaf size={18} /></span>
+          <span>ChillBerry</span>
+        </Link>
+        <p className="eyebrow">Start your garden</p>
+        <h2 className="mt-3">Make space for lighter days.</h2>
+        <p>Create an account to keep your progress close, wherever the day takes you.</p>
 
-        <p className="mb-8 text-center text-gray-500">
-          Join ChillBerry and create your tiny happy space
-        </p>
+        {message && <div className="form-message" role="alert"><AlertCircle size={17} /><span>{message}</span></div>}
 
-        {message && (
-          <div className="mb-4 rounded-xl bg-purple-50 p-3 text-center text-sm text-purple-600">
-            {message}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600">
-              Name
-            </label>
-
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Enter your name"
-              className="w-full rounded-2xl border border-pink-200 px-4 py-3 outline-none transition focus:border-pink-400"
-            />
+        <form onSubmit={handleSubmit} className="mt-7">
+          <div className="form-group">
+            <label htmlFor="register-name">Your name</label>
+            <div className="input-wrap">
+              <UserRound size={18} />
+              <input id="register-name" className="field" type="text" name="name" value={formData.name} onChange={handleChange} placeholder="What should Berry call you?" autoComplete="name" minLength="2" required />
+            </div>
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600">
-              Email
-            </label>
-
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Enter your email"
-              className="w-full rounded-2xl border border-purple-200 px-4 py-3 outline-none transition focus:border-purple-400"
-            />
+          <div className="form-group">
+            <label htmlFor="register-email">Email address</label>
+            <div className="input-wrap">
+              <Mail size={18} />
+              <input id="register-email" className="field" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" autoComplete="email" required />
+            </div>
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600">
-              Password
-            </label>
-
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Create a password"
-              className="w-full rounded-2xl border border-pink-200 px-4 py-3 outline-none transition focus:border-pink-400"
-            />
+          <div className="form-group">
+            <label htmlFor="register-password">Password</label>
+            <div className="input-wrap">
+              <LockKeyhole size={18} />
+              <input id="register-password" className="field" type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} placeholder="At least 6 characters" autoComplete="new-password" minLength="6" required />
+              <button type="button" className="password-toggle" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Hide password" : "Show password"} title={showPassword ? "Hide password" : "Show password"}>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-2xl bg-pink-400 py-3 font-semibold text-white transition hover:bg-pink-500 disabled:opacity-60"
-          >
-            {loading ? "Creating..." : "Create Account"}
+          <button type="submit" disabled={loading} className="button button-primary mt-7 w-full">
+            {loading ? <span className="loading-dot" /> : <>Create my space <ArrowRight size={18} /></>}
           </button>
         </form>
+
+        <p className="auth-switch">Already growing with us? <Link to="/login">Log in</Link></p>
+        <Link to="/" className="auth-guest-link">Continue on this device without an account</Link>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
 

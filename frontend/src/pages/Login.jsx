@@ -1,112 +1,78 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { AlertCircle, ArrowRight, Eye, EyeOff, Leaf, LockKeyhole, Mail } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import AuthLayout from "../components/AuthLayout";
 import api from "../services/api";
 
 function Login() {
   const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
-
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const handleChange = (event) => {
+    setFormData((current) => ({ ...current, [event.target.name]: event.target.value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     try {
       setLoading(true);
       setMessage("");
-
       const response = await api.post("/auth/login", formData);
-
       localStorage.setItem("token", response.data.token);
-      localStorage.setItem(
-        "user",
-        JSON.stringify(response.data.user)
-      );
-
-      setMessage("Login successful");
-
-      setTimeout(() => {
-        navigate("/");
-      }, 800);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      navigate("/");
     } catch (error) {
-      setMessage(
-        error.response?.data?.message || "Something went wrong"
-      );
+      setMessage(error.response?.data?.message || "We could not sign you in. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-purple-50">
-      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
-        <h1 className="mb-2 text-center text-4xl font-bold text-pink-500">
-          Welcome Back
-        </h1>
+    <AuthLayout mode="login">
+      <div className="auth-form">
+        <Link to="/" className="auth-mobile-brand brand-lockup">
+          <span className="brand-mark"><Leaf size={18} /></span>
+          <span>ChillBerry</span>
+        </Link>
+        <p className="eyebrow">Welcome back</p>
+        <h2 className="mt-3">Come back to calm.</h2>
+        <p>Your garden, streak, and tiny wins are ready when you are.</p>
 
-        <p className="mb-8 text-center text-gray-500">
-          Sign in to continue to ChillBerry
-        </p>
+        {message && <div className="form-message" role="alert"><AlertCircle size={17} /><span>{message}</span></div>}
 
-        {message && (
-          <div className="mb-4 rounded-xl bg-purple-50 p-3 text-center text-sm text-purple-600">
-            {message}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600">
-              Email
-            </label>
-
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Enter your email"
-              className="w-full rounded-2xl border border-pink-200 px-4 py-3 outline-none transition focus:border-pink-400"
-            />
+        <form onSubmit={handleSubmit} className="mt-8">
+          <div className="form-group">
+            <label htmlFor="login-email">Email address</label>
+            <div className="input-wrap">
+              <Mail size={18} />
+              <input id="login-email" className="field" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" autoComplete="email" required />
+            </div>
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-600">
-              Password
-            </label>
-
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Enter your password"
-              className="w-full rounded-2xl border border-purple-200 px-4 py-3 outline-none transition focus:border-purple-400"
-            />
+          <div className="form-group">
+            <label htmlFor="login-password">Password</label>
+            <div className="input-wrap">
+              <LockKeyhole size={18} />
+              <input id="login-password" className="field" type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} placeholder="Enter your password" autoComplete="current-password" required />
+              <button type="button" className="password-toggle" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Hide password" : "Show password"} title={showPassword ? "Hide password" : "Show password"}>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-2xl bg-pink-400 py-3 font-semibold text-white transition hover:bg-pink-500 disabled:opacity-60"
-          >
-            {loading ? "Signing in..." : "Login"}
+          <button type="submit" disabled={loading} className="button button-primary mt-7 w-full">
+            {loading ? <span className="loading-dot" /> : <>Log in <ArrowRight size={18} /></>}
           </button>
         </form>
+
+        <p className="auth-switch">New to ChillBerry? <Link to="/register">Create your space</Link></p>
+        <Link to="/" className="auth-guest-link">Continue on this device without an account</Link>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
 
