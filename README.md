@@ -197,8 +197,6 @@ Earn points, build streaks and unlock new plants, themes and cosmetic rewards.
 
 **Node.js · Express.js**
 
-**Node.js · Express.js**
-
 <br/>
 
 ### Database
