@@ -39,7 +39,7 @@ function Register() {
           <span>ChillBerry</span>
         </Link>
         <p className="eyebrow">Start your garden</p>
-        <h2 className="mt-3">Make space for lighter days.</h2>
+        <h2 className="mt-3">Claim your berry pass.</h2>
         <p>Create an account to keep your progress close, wherever the day takes you.</p>
 
         {message && <div className="form-message" role="alert"><AlertCircle size={17} /><span>{message}</span></div>}
@@ -73,7 +73,7 @@ function Register() {
           </div>
 
           <button type="submit" disabled={loading} className="button button-primary mt-7 w-full">
-            {loading ? <span className="loading-dot" /> : <>Create my space <ArrowRight size={18} /></>}
+            {loading ? <span className="loading-dot" /> : <>Create berry pass <ArrowRight size={18} /></>}
           </button>
         </form>
 

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   BadgeCheck,
   BookHeart,
+  Camera,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -12,6 +13,7 @@ import {
   Flame,
   Flower2,
   Heart,
+  Home as HomeIcon,
   Leaf,
   LogOut,
   Pause,
@@ -26,7 +28,22 @@ import {
   Zap,
 } from "lucide-react";
 import api from "../services/api";
-import gardenImage from "../assets/chillberry-garden.png";
+import berryLove from "../assets/berry-love.png";
+import berryMoods from "../assets/berry-moods.png";
+import berryGarden from "../assets/berry-garden.png";
+import berryCozy from "../assets/berry-cozy.png";
+import berryStress from "../assets/berry-stress.png";
+import berryCards from "../assets/berry-cards.png";
+
+const navItems = [
+  { to: "/", label: "Home", Icon: HomeIcon, color: "#ff5a8a", end: true },
+  { to: "/today", label: "Today", Icon: Sun, color: "#f6b73c" },
+  { to: "/garden", label: "Garden", Icon: Flower2, color: "#5fc483" },
+  { to: "/comfort", label: "Comfort", Icon: Heart, color: "#ff7a61" },
+  { to: "/cozy", label: "Cozy", Icon: Camera, color: "#7cb7ff" },
+  { to: "/rescue", label: "Rescue", Icon: BookHeart, color: "#a878ff" },
+  { to: "/berry", label: "Berry", Icon: Leaf, color: "#38c6b1" },
+];
 
 const moods = [
   { id: "happy", label: "Happy", tone: "Creative", plant: "Sun Sprout", color: "#f6b73c", suggestion: "Save this spark with a tiny creative activity.", Icon: Sun },
@@ -129,7 +146,7 @@ const greeting = () => {
   return "Good evening";
 };
 
-function Home() {
+function Home({ view = "home" }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(() => loadStored("user", null));
   const [progress, setProgress] = useState(() => mergeProgress(loadStored("chillberry-progress", starterProgress)));
@@ -179,7 +196,7 @@ function Home() {
   }, [secondsLeft, timerRunning]);
 
   const latestMood = progress.moodHistory[0];
-  const garden = progress.moodHistory.slice(0, 8);
+  const garden = progress.moodHistory.slice(0, 10);
   const completedToday = useMemo(() => new Set(progress.completedJoys
     .filter((joy) => joy.createdAt?.slice(0, 10) === todayKey())
     .map((joy) => joy.title)), [progress.completedJoys]);
@@ -303,130 +320,413 @@ function Home() {
     setUser(null);
     navigate("/login");
   };
-  const timerDisplay = `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`;
+
+  const sharedProps = {
+    activity,
+    bubblePopped,
+    careForPet,
+    chooseRandom,
+    comfortHandlers: { setActivity, setCompliment },
+    compliment,
+    completeCozy,
+    completeJoy,
+    completeRescue,
+    completedToday,
+    garden,
+    handleMood,
+    latestMood,
+    minutes,
+    nextUnlock,
+    popStressBubble,
+    progress,
+    rescueStep,
+    resetCozy,
+    scene,
+    secondsLeft,
+    selectedMood,
+    setMinutes,
+    setRescueStep,
+    setScene,
+    setStressText,
+    setTimerRunning,
+    startCozy,
+    stressText,
+    timerRunning,
+    unlockProgress,
+    user,
+    sessionStarted,
+  };
+
+  const pages = {
+    home: <LandingPage {...sharedProps} />,
+    today: <TodayPage {...sharedProps} />,
+    garden: <GardenPage {...sharedProps} />,
+    comfort: <ComfortPage {...sharedProps} />,
+    cozy: <CozyPage {...sharedProps} />,
+    rescue: <RescuePage {...sharedProps} />,
+    berry: <BerryPage {...sharedProps} />,
+  };
 
   return (
-    <main className="app-shell min-h-screen text-[#29252c]">
-      <header className="sticky top-0 z-50 border-b border-[#eadfe3] bg-[#fffdfb]/95 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-[1380px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link to="/" className="brand-lockup" aria-label="ChillBerry home"><span className="brand-mark"><Leaf size={18} strokeWidth={2.5} /></span><span>ChillBerry</span></Link>
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
-            <a className="nav-link" href="#today">Today</a><a className="nav-link" href="#garden">Garden</a><a className="nav-link" href="#comfort">Comfort tools</a><a className="nav-link" href="#pet">Berry</a>
-          </nav>
-          <div className="flex items-center gap-2">
-            {user ? <><div className="user-chip hidden sm:flex"><CircleUserRound size={17} /><span>{user.name || "Berry Friend"}</span></div><button className="icon-button" type="button" onClick={logout} title="Log out" aria-label="Log out"><LogOut size={19} /></button></> : <><Link to="/login" className="button button-quiet">Log in</Link><Link to="/register" className="button button-primary join-button">Join free</Link></>}
-          </div>
-        </div>
-      </header>
-
-      {notice && <div className="notice-toast" role="status" aria-live="polite"><BadgeCheck size={18} /><span>{notice}</span><button type="button" onClick={() => setNotice("")} aria-label="Dismiss message" title="Dismiss"><X size={17} /></button></div>}
-
-      <section className="hero-band overflow-hidden border-b border-[#eadfe3]">
-        <div className="mx-auto grid min-h-[calc(100vh-112px)] max-w-[1380px] grid-cols-1 items-center gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[0.88fr_1.12fr] lg:px-8 lg:py-10">
-          <div className="relative z-10 max-w-2xl">
-            <p className="eyebrow"><Sparkles size={15} /> Your calm space for today</p>
-            <h1 className="mt-5 text-5xl font-black leading-[0.88] text-[#a82e59] sm:text-6xl lg:text-7xl xl:text-8xl">Feel it.<br /><span className="text-[#315e49]">Grow through</span><br /><span className="text-[#315e49]">it.</span></h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-[#615a61] sm:text-lg sm:leading-8">A gentle daily space to notice your mood, release what feels heavy, and grow tiny moments of joy.</p>
-            <div className="mt-7 flex flex-wrap gap-3"><a href="#today" className="button button-primary button-large">Check in now <ArrowRight size={18} /></a><a href="#rescue" className="button button-quiet button-large">I need a reset</a></div>
-            <div className="mt-9 grid max-w-xl grid-cols-3 border-y border-[#dfd6d9] py-4">
-              <Stat value={progress.points} label="Chill points" icon={Sparkles} color="#a82e59" /><Stat value={progress.streak} label="Day streak" icon={Flame} color="#cb6b3d" /><Stat value={garden.length} label="Plants grown" icon={Flower2} color="#387258" />
-            </div>
-          </div>
-          <div className="hero-art relative flex min-h-[360px] items-center justify-center lg:min-h-[600px]">
-            <div className="hero-art-frame" /><img src={gardenImage} alt="Berry resting in a lush floating wellbeing garden" className="relative z-10 w-full max-w-[670px] object-contain" />
-            <div className="hero-note hero-note-top"><Wind size={17} /><span>Take it softly</span></div><div className="hero-note hero-note-bottom"><Leaf size={17} /><span>{progress.moodHistory.length || "New"} garden moments</span></div>
-          </div>
-        </div>
-      </section>
-
-      <div className="mx-auto max-w-[1380px] px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-        <section id="today" className="scroll-mt-24">
-          <SectionHeading eyebrow={`${greeting()}${user?.name ? `, ${user.name.split(" ")[0]}` : ""}`} title="How are you arriving today?" description="There is no wrong answer. Choose the feeling that comes closest." />
-          <div className="mt-6 grid gap-4 lg:grid-cols-[1.45fr_0.55fr]">
-            <div className="panel p-4 sm:p-6">
-              <div className="mood-grid">
-                {moods.map((mood) => {
-                  const Icon = mood.Icon;
-                  const active = (selectedMood || latestMood)?.mood === mood.id || selectedMood?.id === mood.id;
-                  return <button key={mood.id} type="button" onClick={() => handleMood(mood)} aria-pressed={active} className={`mood-option ${active ? "is-active" : ""}`} style={{ "--mood-color": mood.color }}><span className="mood-icon"><Icon size={22} /></span><strong>{mood.label}</strong><small>{mood.tone}</small></button>;
-                })}
-              </div>
-              <div className="suggestion-strip"><span className="suggestion-icon"><Sparkles size={20} /></span><div><p className="label">A gentle next step</p><p>{(selectedMood || latestMood)?.suggestion || "Choose a mood and your first tiny comfort suggestion will appear here."}</p></div></div>
-            </div>
-            <aside className="panel progress-panel p-5 sm:p-6">
-              <div className="flex items-start justify-between gap-4"><div><p className="label text-[#7d6e73]">Next reward</p><h3 className="mt-2 text-xl font-extrabold text-[#2c292c]">{nextUnlock?.name || "Garden complete"}</h3></div><span className="reward-icon"><Star size={22} /></span></div>
-              <div className="mt-8"><div className="mb-2 flex justify-between text-sm font-bold text-[#6a6165]"><span>{progress.points} points</span><span>{nextUnlock?.points || progress.points}</span></div><ProgressBar value={unlockProgress} color="#d69a3b" /><p className="mt-3 text-sm leading-6 text-[#776e72]">{nextUnlock ? `${Math.max(0, nextUnlock.points - progress.points)} more points to unlock it.` : "You found every current reward."}</p></div>
-            </aside>
-          </div>
-        </section>
-
-        <section id="garden" className="scroll-mt-24 pt-14 lg:pt-20">
-          <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-            <div className="garden-intro"><p className="eyebrow"><Flower2 size={15} /> Your mood garden</p><h2 className="mt-4 text-3xl font-black text-[#2d3f35] sm:text-4xl">Every feeling leaves something worth tending.</h2><p className="mt-4 max-w-lg leading-7 text-[#68716b]">Each check-in plants a new memory. Over time, your garden becomes a quiet record of how far you have come.</p><div className="mt-8 flex gap-7"><MiniStat value={progress.moodHistory.length} label="Check-ins" /><MiniStat value={progress.streak} label="Current streak" /></div></div>
-            <div className="garden-bed">
-              {garden.length > 0 ? <div className="garden-grid">{garden.map((item, index) => <div className="plant" key={`${item.createdAt}-${index}`}><span className={`plant-shape plant-${(index % 4) + 1}`} style={{ "--plant-color": item.color || "#68b889" }} /><strong>{item.plant || "Berry Sprout"}</strong><small>{item.label || item.mood}</small></div>)}</div> : <div className="empty-garden"><span><Leaf size={32} /></span><strong>Your garden is ready</strong><p>Choose a mood above to plant the first sprout.</p></div>}
-            </div>
-          </div>
-        </section>
-
-        <section id="comfort" className="scroll-mt-24 pt-14 lg:pt-20">
-          <SectionHeading eyebrow="Small things, real shifts" title="Your comfort toolkit" description="Pick what feels useful now. A minute is enough to begin." />
-          <div className="mt-6 grid gap-4 lg:grid-cols-12">
-            <article className="panel lg:col-span-5">
-              <CardHeader icon={Check} title="Tiny daily joys" meta={`${completedToday.size}/${dailyJoys.length} today`} tone="green" />
-              <div className="divide-y divide-[#e7e5e2] px-5 pb-3">{dailyJoys.map((joy) => { const done = completedToday.has(joy.title); return <button key={joy.title} type="button" disabled={done} onClick={() => completeJoy(joy)} className="joy-row"><span className={`joy-check ${done ? "is-done" : ""}`}>{done && <Check size={15} strokeWidth={3} />}</span><span className="min-w-0 flex-1"><strong>{joy.title}</strong><small>{joy.category}</small></span><span className="point-pill">{done ? "Done" : `+${joy.points}`}</span></button>; })}</div>
-            </article>
-
-            <article className="panel overflow-hidden lg:col-span-7">
-              <CardHeader icon={CloudRain} title="Stress bubble" meta="Write it. Release it." tone="blue" />
-              <div className="grid min-h-[280px] gap-5 p-5 sm:grid-cols-[1fr_180px] sm:p-6">
-                <div className="flex flex-col"><label htmlFor="stress-thought" className="label mb-2">What feels heavy?</label><textarea id="stress-thought" value={stressText} onChange={(event) => setStressText(event.target.value)} rows={5} maxLength={160} placeholder="Let one thought out of your head..." className="field flex-1 resize-none" /><div className="mt-2 flex justify-between text-xs text-[#8b8386]"><span>Private to you</span><span>{stressText.length}/160</span></div></div>
-                <div className="bubble-stage"><button type="button" onClick={popStressBubble} className={`stress-bubble ${bubblePopped ? "stress-bubble-pop" : ""}`} aria-label="Pop stress bubble"><span>Release</span><Wind size={20} /></button></div>
-              </div>
-            </article>
-
-            <article className="panel lg:col-span-4"><CardHeader icon={Heart} title="A note for you" meta="Compliment machine" tone="berry" /><div className="p-5 sm:p-6"><blockquote className="quote-text">“{compliment}”</blockquote><button type="button" onClick={() => chooseRandom(compliments, compliment, setCompliment)} className="button button-quiet mt-7"><RefreshCw size={17} /> New note</button></div></article>
-            <article className="panel lg:col-span-4"><CardHeader icon={Sparkles} title="Try something tiny" meta="Activity generator" tone="coral" /><div className="p-5 sm:p-6"><p className="activity-text">{activity}</p><button type="button" onClick={() => chooseRandom(activities, activity, setActivity)} className="button button-quiet mt-7"><RefreshCw size={17} /> Another idea</button></div></article>
-            <article className="panel lg:col-span-4" id="pet">
-              <CardHeader icon={Heart} title={progress.pet.name} meta="Your garden buddy" tone="green" />
-              <div className="p-5 sm:p-6"><div className="pet-zone"><div className="pet-shadow" /><div className="pet-face"><span className="pet-leaf" /></div></div><div className="mt-5 space-y-3"><Meter label="Energy" value={progress.pet.energy} color="#d39a42" /><Meter label="Happiness" value={progress.pet.happiness} color="#5da47b" /></div><div className="mt-5 grid grid-cols-3 gap-2">{["feed", "play", "pat"].map((action) => <button key={action} type="button" onClick={() => careForPet(action)} className="pet-action">{action}</button>)}</div></div>
-            </article>
-          </div>
-        </section>
-
-        <section className="pt-14 lg:pt-20">
-          <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-            <article className="cozy-panel">
-              <div className="relative z-10"><p className="eyebrow eyebrow-light"><CloudRain size={15} /> Cozy corner</p><div className="mt-5 flex flex-wrap items-start justify-between gap-5"><div><h2 className="text-3xl font-black text-white">Make room for quiet.</h2><p className="mt-2 text-sm leading-6 text-[#d9e8e1]">Choose a scene and stay for a few unhurried minutes.</p></div><div className="timer-display" aria-live="polite">{sessionStarted ? timerDisplay : `${String(minutes).padStart(2, "0")}:00`}</div></div>
-                <div className="scene-tabs mt-8" role="group" aria-label="Cozy scene">{cozyScenes.map((item) => <button key={item} type="button" onClick={() => { setScene(item); resetCozy(); }} className={scene === item ? "is-active" : ""}>{item}</button>)}</div>
-                <div className="mt-7"><div className="mb-3 flex justify-between text-sm font-bold text-[#e7f0eb]"><label htmlFor="session-minutes">Session length</label><span>{minutes} min</span></div><input id="session-minutes" type="range" min="1" max="15" value={minutes} disabled={sessionStarted} onChange={(event) => setMinutes(Number(event.target.value))} className="cozy-range" /></div>
-                <div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={timerRunning ? () => setTimerRunning(false) : startCozy} className="button button-light">{timerRunning ? <Pause size={18} /> : <Play size={18} />}{timerRunning ? "Pause" : sessionStarted ? "Resume" : "Start session"}</button>{sessionStarted && <button type="button" onClick={resetCozy} className="icon-button icon-button-dark" title="Reset timer" aria-label="Reset timer"><TimerReset size={19} /></button>}<button type="button" disabled={!sessionStarted} onClick={completeCozy} className="button button-outline-light"><Check size={18} /> Complete</button></div>
-              </div>
-            </article>
-
-            <article id="rescue" className="rescue-panel scroll-mt-24">
-              <div className="flex items-start justify-between gap-4"><div><p className="eyebrow"><BookHeart size={15} /> Bad day rescue</p><h2 className="mt-4 text-3xl font-black text-[#3c3340]">One step at a time.</h2></div><span className="step-count">{rescueStep + 1}/{rescueSteps.length}</span></div>
-              <div className="rescue-step"><span>{String(rescueStep + 1).padStart(2, "0")}</span><p>{rescueSteps[rescueStep]}</p></div>
-              <div className="step-dots" aria-hidden="true">{rescueSteps.map((_, index) => <span key={index} className={index <= rescueStep ? "is-active" : ""} />)}</div>
-              <div className="mt-7 flex items-center justify-between gap-3"><button type="button" disabled={rescueStep === 0} onClick={() => setRescueStep((current) => current - 1)} className="icon-button" title="Previous step" aria-label="Previous step"><ChevronLeft size={20} /></button>{rescueStep < rescueSteps.length - 1 ? <button type="button" onClick={() => setRescueStep((current) => current + 1)} className="button button-rescue">Next step <ChevronRight size={18} /></button> : <button type="button" onClick={completeRescue} className="button button-rescue"><Check size={18} /> Finish rescue</button>}</div>
-            </article>
-          </div>
-        </section>
-      </div>
-
-      <footer className="border-t border-[#dedbd7] bg-[#f1f3ed]"><div className="mx-auto grid max-w-[1380px] gap-6 px-4 py-8 sm:px-6 md:grid-cols-[1fr_auto] md:items-center lg:px-8"><div><div className="brand-lockup"><span className="brand-mark"><Leaf size={18} /></span><span>ChillBerry</span></div><p className="mt-2 text-sm text-[#6e746e]">Small moments make a kinder day.</p></div><div className="grid grid-cols-3 gap-7 text-right"><MiniStat value={progress.completedJoys.length} label="Joys" /><MiniStat value={progress.stressPops.length} label="Released" /><MiniStat value={progress.unlocks.length} label="Rewards" /></div></div></footer>
+    <main className="app-shell min-h-screen">
+      <SiteHeader user={user} logout={logout} />
+      {notice && <NoticeToast notice={notice} onDismiss={() => setNotice("")} />}
+      {pages[view] || pages.home}
+      <SiteFooter progress={progress} />
     </main>
   );
 }
 
+function SiteHeader({ user, logout }) {
+  return (
+    <header className="site-header">
+      <div className="site-header-inner">
+        <Link to="/" className="brand-lockup" aria-label="ChillBerry home">
+          <span className="brand-mark"><Leaf size={18} strokeWidth={2.6} /></span>
+          <span>ChillBerry</span>
+        </Link>
+        <nav className="candy-nav" aria-label="Main navigation">
+          {navItems.map(({ to, label, Icon, color, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              style={{ "--nav-color": color }}
+              className={({ isActive }) => `candy-nav-link ${isActive ? "is-active" : ""}`}
+            >
+              <Icon size={17} />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+        <div className="header-actions">
+          {user ? (
+            <>
+              <div className="user-chip"><CircleUserRound size={17} /><span>{user.name || "Berry Friend"}</span></div>
+              <button className="icon-button" type="button" onClick={logout} title="Log out" aria-label="Log out"><LogOut size={19} /></button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="button button-quiet">Log in</Link>
+              <Link to="/register" className="button button-primary join-button">Join free</Link>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function LandingPage({ progress, garden, user, nextUnlock, unlockProgress }) {
+  const quickCards = [
+    { to: "/today", title: "Check in", copy: "Pick today's mood and grow a new sprout.", image: berryMoods, color: "#ffd75e" },
+    { to: "/comfort", title: "Comfort tools", copy: "Tiny joys, notes, and a release bubble.", image: berryCards, color: "#ff87a8" },
+    { to: "/cozy", title: "Cozy corner", copy: "Start a soft timer with a scene you like.", image: berryCozy, color: "#8fd3ff" },
+  ];
+
+  return (
+    <>
+      <section className="home-hero">
+        <div className="home-hero-copy">
+          <p className="eyebrow"><Sparkles size={15} /> {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""}</p>
+          <h1>ChillBerry</h1>
+          <p>A colorful little wellbeing space for mood check-ins, gentle resets, and tiny happy moments.</p>
+          <div className="hero-actions">
+            <Link to="/today" className="button button-primary button-large">Start today <ArrowRight size={18} /></Link>
+            <Link to="/rescue" className="button button-quiet button-large">I need a reset</Link>
+          </div>
+          <div className="hero-stats">
+            <Stat value={progress.points} label="Chill points" icon={Sparkles} color="#ff5a8a" />
+            <Stat value={progress.streak} label="Day streak" icon={Flame} color="#ff7a42" />
+            <Stat value={garden.length} label="Plants grown" icon={Flower2} color="#35a868" />
+          </div>
+        </div>
+        <div className="home-hero-art">
+          <img src={berryLove} alt="Cute strawberry character holding a heart" />
+          <span className="float-badge badge-top"><Heart size={16} /> Take it softly</span>
+          <span className="float-badge badge-bottom"><Star size={16} /> {nextUnlock?.name || "All rewards"}</span>
+        </div>
+      </section>
+
+      <section className="page-section">
+        <div className="section-heading-row">
+          <SectionHeading eyebrow="Choose a space" title="Every nav item opens its own page." description="The app now feels less crowded, with each tool getting room to breathe." />
+          <RewardProgress progress={progress} nextUnlock={nextUnlock} unlockProgress={unlockProgress} />
+        </div>
+        <div className="feature-grid">
+          {quickCards.map((card) => (
+            <Link to={card.to} className="feature-card" style={{ "--card-color": card.color }} key={card.to}>
+              <img src={card.image} alt="" />
+              <strong>{card.title}</strong>
+              <span>{card.copy}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function TodayPage({ latestMood, selectedMood, handleMood, progress, nextUnlock, unlockProgress, user }) {
+  const currentMood = selectedMood || latestMood;
+  return (
+    <section className="page-shell today-page">
+      <PageHero
+        eyebrow={`${greeting()}${user?.name ? `, ${user.name.split(" ")[0]}` : ""}`}
+        title="How are you arriving today?"
+        copy="There is no wrong answer. Choose the feeling that comes closest and ChillBerry will save it."
+        image={berryMoods}
+      />
+      <div className="content-grid two-one">
+        <div className="panel p-4 sm:p-6">
+          <div className="mood-grid">
+            {moods.map((mood) => {
+              const Icon = mood.Icon;
+              const active = currentMood?.mood === mood.id || currentMood?.id === mood.id;
+              return (
+                <button key={mood.id} type="button" onClick={() => handleMood(mood)} aria-pressed={active} className={`mood-option ${active ? "is-active" : ""}`} style={{ "--mood-color": mood.color }}>
+                  <span className="mood-icon"><Icon size={22} /></span>
+                  <strong>{mood.label}</strong>
+                  <small>{mood.tone}</small>
+                </button>
+              );
+            })}
+          </div>
+          <div className="suggestion-strip">
+            <span className="suggestion-icon"><Sparkles size={20} /></span>
+            <div>
+              <p className="label">A gentle next step</p>
+              <p>{currentMood?.suggestion || "Choose a mood and your first tiny comfort suggestion will appear here."}</p>
+            </div>
+          </div>
+        </div>
+        <RewardProgress progress={progress} nextUnlock={nextUnlock} unlockProgress={unlockProgress} />
+      </div>
+    </section>
+  );
+}
+
+function GardenPage({ garden, progress }) {
+  return (
+    <section className="page-shell garden-page">
+      <PageHero
+        eyebrow="Your mood garden"
+        title="Every feeling leaves something worth tending."
+        copy="Each check-in plants a new memory. Over time, your garden becomes a quiet record of how far you have come."
+        image={berryGarden}
+      />
+      <div className="content-grid two-one reverse">
+        <div className="garden-bed">
+          {garden.length > 0 ? (
+            <div className="garden-grid">
+              {garden.map((item, index) => (
+                <div className="plant" key={`${item.createdAt}-${index}`}>
+                  <span className={`plant-shape plant-${(index % 4) + 1}`} style={{ "--plant-color": item.color || "#68b889" }} />
+                  <strong>{item.plant || "Berry Sprout"}</strong>
+                  <small>{item.label || item.mood}</small>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-garden">
+              <span><Leaf size={32} /></span>
+              <strong>Your garden is ready</strong>
+              <p>Visit Today to plant the first sprout.</p>
+              <Link to="/today" className="button button-primary">Check in <ArrowRight size={17} /></Link>
+            </div>
+          )}
+        </div>
+        <div className="panel garden-summary">
+          <MiniStat value={progress.moodHistory.length} label="Check-ins" />
+          <MiniStat value={progress.streak} label="Current streak" />
+          <MiniStat value={progress.unlocks.length} label="Rewards" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ComfortPage({ completedToday, completeJoy, stressText, setStressText, popStressBubble, bubblePopped, compliment, activity, chooseRandom, comfortHandlers }) {
+  return (
+    <section className="page-shell comfort-page">
+      <PageHero
+        eyebrow="Small things, real shifts"
+        title="Your comfort toolkit."
+        copy="Pick what feels useful now. A minute is enough to begin."
+        image={berryCards}
+      />
+      <div className="comfort-layout">
+        <article className="panel">
+          <CardHeader icon={Check} title="Tiny daily joys" meta={`${completedToday.size}/${dailyJoys.length} today`} tone="green" />
+          <div className="divide-list">
+            {dailyJoys.map((joy) => {
+              const done = completedToday.has(joy.title);
+              return (
+                <button key={joy.title} type="button" disabled={done} onClick={() => completeJoy(joy)} className="joy-row">
+                  <span className={`joy-check ${done ? "is-done" : ""}`}>{done && <Check size={15} strokeWidth={3} />}</span>
+                  <span className="joy-copy"><strong>{joy.title}</strong><small>{joy.category}</small></span>
+                  <span className="point-pill">{done ? "Done" : `+${joy.points}`}</span>
+                </button>
+              );
+            })}
+          </div>
+        </article>
+        <article className="panel">
+          <CardHeader icon={CloudRain} title="Stress bubble" meta="Write it. Release it." tone="blue" />
+          <div className="stress-content">
+            <div className="stress-form">
+              <label htmlFor="stress-thought" className="label">What feels heavy?</label>
+              <textarea id="stress-thought" value={stressText} onChange={(event) => setStressText(event.target.value)} rows={6} maxLength={160} placeholder="Let one thought out of your head..." className="field" />
+              <div className="field-note"><span>Private to you</span><span>{stressText.length}/160</span></div>
+            </div>
+            <div className="bubble-stage">
+              <button type="button" onClick={popStressBubble} className={`stress-bubble ${bubblePopped ? "stress-bubble-pop" : ""}`} aria-label="Pop stress bubble"><span>Release</span><Wind size={20} /></button>
+            </div>
+          </div>
+        </article>
+        <article className="panel note-panel">
+          <CardHeader icon={Heart} title="A note for you" meta="Compliment machine" tone="berry" />
+          <div className="mini-tool-body">
+            <blockquote className="quote-text">"{compliment}"</blockquote>
+            <button type="button" onClick={() => chooseRandom(compliments, compliment, comfortHandlers.setCompliment)} className="button button-quiet"><RefreshCw size={17} /> New note</button>
+          </div>
+        </article>
+        <article className="panel note-panel">
+          <CardHeader icon={Sparkles} title="Try something tiny" meta="Activity generator" tone="coral" />
+          <div className="mini-tool-body">
+            <p className="activity-text">{activity}</p>
+            <button type="button" onClick={() => chooseRandom(activities, activity, comfortHandlers.setActivity)} className="button button-quiet"><RefreshCw size={17} /> Another idea</button>
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function CozyPage({ scene, setScene, resetCozy, minutes, setMinutes, sessionStarted, secondsLeft, timerRunning, setTimerRunning, startCozy, completeCozy }) {
+  const timerDisplay = `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`;
+  return (
+    <section className="page-shell cozy-page">
+      <PageHero
+        eyebrow="Cozy corner"
+        title="Make room for quiet."
+        copy="Choose a scene and stay for a few unhurried minutes."
+        image={berryCozy}
+      />
+      <article className="cozy-panel">
+        <div>
+          <p className="eyebrow eyebrow-light"><CloudRain size={15} /> {scene}</p>
+          <div className="cozy-head">
+            <h2>Soft timer</h2>
+            <div className="timer-display" aria-live="polite">{sessionStarted ? timerDisplay : `${String(minutes).padStart(2, "0")}:00`}</div>
+          </div>
+          <div className="scene-tabs" role="group" aria-label="Cozy scene">
+            {cozyScenes.map((item) => <button key={item} type="button" onClick={() => { setScene(item); resetCozy(); }} className={scene === item ? "is-active" : ""}>{item}</button>)}
+          </div>
+          <div className="range-row">
+            <div><label htmlFor="session-minutes">Session length</label><span>{minutes} min</span></div>
+            <input id="session-minutes" type="range" min="1" max="15" value={minutes} disabled={sessionStarted} onChange={(event) => setMinutes(Number(event.target.value))} className="cozy-range" />
+          </div>
+          <div className="cozy-actions">
+            <button type="button" onClick={timerRunning ? () => setTimerRunning(false) : startCozy} className="button button-light">{timerRunning ? <Pause size={18} /> : <Play size={18} />}{timerRunning ? "Pause" : sessionStarted ? "Resume" : "Start session"}</button>
+            {sessionStarted && <button type="button" onClick={resetCozy} className="icon-button icon-button-dark" title="Reset timer" aria-label="Reset timer"><TimerReset size={19} /></button>}
+            <button type="button" disabled={!sessionStarted} onClick={completeCozy} className="button button-outline-light"><Check size={18} /> Complete</button>
+          </div>
+        </div>
+      </article>
+    </section>
+  );
+}
+
+function RescuePage({ rescueStep, setRescueStep, completeRescue }) {
+  return (
+    <section className="page-shell rescue-page">
+      <PageHero
+        eyebrow="Bad day rescue"
+        title="One step at a time."
+        copy="A quieter page for the moments when everything feels like too much."
+        image={berryStress}
+      />
+      <article className="rescue-panel">
+        <div className="rescue-top">
+          <p className="eyebrow"><BookHeart size={15} /> Bad day rescue</p>
+          <span className="step-count">{rescueStep + 1}/{rescueSteps.length}</span>
+        </div>
+        <div className="rescue-step"><span>{String(rescueStep + 1).padStart(2, "0")}</span><p>{rescueSteps[rescueStep]}</p></div>
+        <div className="step-dots" aria-hidden="true">{rescueSteps.map((_, index) => <span key={index} className={index <= rescueStep ? "is-active" : ""} />)}</div>
+        <div className="rescue-actions">
+          <button type="button" disabled={rescueStep === 0} onClick={() => setRescueStep((current) => current - 1)} className="icon-button" title="Previous step" aria-label="Previous step"><ChevronLeft size={20} /></button>
+          {rescueStep < rescueSteps.length - 1 ? (
+            <button type="button" onClick={() => setRescueStep((current) => current + 1)} className="button button-rescue">Next step <ChevronRight size={18} /></button>
+          ) : (
+            <button type="button" onClick={completeRescue} className="button button-rescue"><Check size={18} /> Finish rescue</button>
+          )}
+        </div>
+      </article>
+    </section>
+  );
+}
+
+function BerryPage({ progress, careForPet }) {
+  return (
+    <section className="page-shell berry-page">
+      <PageHero
+        eyebrow="Garden buddy"
+        title={`${progress.pet.name} has a page now.`}
+        copy="Feed, play, or give a gentle pat to keep your little berry buddy cheerful."
+        image={berryLove}
+      />
+      <article className="panel pet-card">
+        <div className="pet-zone"><div className="pet-shadow" /><div className="pet-face"><span className="pet-leaf" /></div></div>
+        <div className="pet-meters">
+          <Meter label="Energy" value={progress.pet.energy} color="#f2ad41" />
+          <Meter label="Happiness" value={progress.pet.happiness} color="#5ec985" />
+        </div>
+        <div className="pet-actions">{["feed", "play", "pat"].map((action) => <button key={action} type="button" onClick={() => careForPet(action)} className="pet-action">{action}</button>)}</div>
+      </article>
+    </section>
+  );
+}
+
+function PageHero({ eyebrow, title, copy, image }) {
+  return (
+    <header className="page-hero">
+      <div>
+        <p className="eyebrow"><Sparkles size={15} /> {eyebrow}</p>
+        <h1>{title}</h1>
+        <p>{copy}</p>
+      </div>
+      <img src={image} alt="" />
+    </header>
+  );
+}
+
+function NoticeToast({ notice, onDismiss }) {
+  return (
+    <div className="notice-toast" role="status" aria-live="polite">
+      <BadgeCheck size={18} />
+      <span>{notice}</span>
+      <button type="button" onClick={onDismiss} aria-label="Dismiss message" title="Dismiss"><X size={17} /></button>
+    </div>
+  );
+}
+
 function SectionHeading({ eyebrow, title, description }) {
-  return <div className="max-w-3xl"><p className="label text-[#a82e59]">{eyebrow}</p><h2 className="mt-3 text-3xl font-black text-[#302c31] sm:text-4xl">{title}</h2><p className="mt-3 max-w-2xl leading-7 text-[#716a70]">{description}</p></div>;
+  return <div className="section-heading"><p className="label">{eyebrow}</p><h2>{title}</h2><p>{description}</p></div>;
+}
+function RewardProgress({ progress, nextUnlock, unlockProgress }) {
+  return (
+    <aside className="panel reward-panel">
+      <div className="reward-head"><div><p className="label">Next reward</p><h3>{nextUnlock?.name || "Garden complete"}</h3></div><span><Star size={22} /></span></div>
+      <div className="reward-meter"><div><span>{progress.points} points</span><span>{nextUnlock?.points || progress.points}</span></div><ProgressBar value={unlockProgress} color="#f2ad41" /><p>{nextUnlock ? `${Math.max(0, nextUnlock.points - progress.points)} more points to unlock it.` : "You found every current reward."}</p></div>
+    </aside>
+  );
 }
 function Stat({ value, label, icon: Icon, color }) {
   return <div className="stat-item"><Icon size={17} style={{ color }} /><div><strong>{value}</strong><span>{label}</span></div></div>;
 }
 function MiniStat({ value, label }) {
-  return <div><strong className="block text-2xl font-black text-[#334c3f]">{value}</strong><span className="text-xs font-bold uppercase text-[#788078]">{label}</span></div>;
+  return <div className="mini-stat"><strong>{value}</strong><span>{label}</span></div>;
 }
 function CardHeader({ icon: Icon, title, meta, tone }) {
   return <header className="card-header"><span className={`card-icon tone-${tone}`}><Icon size={19} /></span><div><h3>{title}</h3><p>{meta}</p></div></header>;
@@ -435,7 +735,24 @@ function ProgressBar({ value, color }) {
   return <div className="progress-track"><div style={{ width: `${value}%`, backgroundColor: color }} /></div>;
 }
 function Meter({ label, value, color }) {
-  return <div><div className="mb-1.5 flex items-center justify-between text-xs font-bold text-[#716b6e]"><span>{label}</span><span>{value}%</span></div><ProgressBar value={value} color={color} /></div>;
+  return <div><div className="meter-label"><span>{label}</span><span>{value}%</span></div><ProgressBar value={value} color={color} /></div>;
+}
+function SiteFooter({ progress }) {
+  return (
+    <footer className="site-footer">
+      <div className="site-footer-inner">
+        <div>
+          <div className="brand-lockup"><span className="brand-mark"><Leaf size={18} /></span><span>ChillBerry</span></div>
+          <p>Small moments make a kinder day.</p>
+        </div>
+        <div className="footer-stats">
+          <MiniStat value={progress.completedJoys.length} label="Joys" />
+          <MiniStat value={progress.stressPops.length} label="Released" />
+          <MiniStat value={progress.unlocks.length} label="Rewards" />
+        </div>
+      </div>
+    </footer>
+  );
 }
 
 export default Home;

@@ -39,7 +39,7 @@ function Login() {
           <span>ChillBerry</span>
         </Link>
         <p className="eyebrow">Welcome back</p>
-        <h2 className="mt-3">Come back to calm.</h2>
+        <h2 className="mt-3">Open your berry gate.</h2>
         <p>Your garden, streak, and tiny wins are ready when you are.</p>
 
         {message && <div className="form-message" role="alert"><AlertCircle size={17} /><span>{message}</span></div>}
@@ -65,7 +65,7 @@ function Login() {
           </div>
 
           <button type="submit" disabled={loading} className="button button-primary mt-7 w-full">
-            {loading ? <span className="loading-dot" /> : <>Log in <ArrowRight size={18} /></>}
+            {loading ? <span className="loading-dot" /> : <>Open my garden <ArrowRight size={18} /></>}
           </button>
         </form>
 

@@ -1,6 +1,7 @@
 import { CheckCircle2, Leaf } from "lucide-react";
 import { Link } from "react-router-dom";
-import gardenImage from "../assets/chillberry-garden.png";
+import loginImage from "../assets/chillberry-garden.png";
+import registerImage from "../assets/register-garden.png";
 
 const benefits = [
   "Keep your mood garden growing",
@@ -10,9 +11,13 @@ const benefits = [
 
 function AuthLayout({ children, mode }) {
   const isRegister = mode === "register";
+  const visualImage = isRegister ? registerImage : loginImage;
+  const badges = isRegister
+    ? ["New sprout", "Fresh start", "Berry pass"]
+    : ["Welcome back", "Garden saved", "Soft landing"];
 
   return (
-    <main className="auth-shell">
+    <main className={`auth-shell auth-${mode}`}>
       <section className="auth-visual" aria-label="ChillBerry garden">
         <Link to="/" className="brand-lockup">
           <span className="brand-mark"><Leaf size={18} /></span>
@@ -20,9 +25,15 @@ function AuthLayout({ children, mode }) {
         </Link>
 
         <img
-          src={gardenImage}
+          src={visualImage}
           alt="Berry resting in the ChillBerry wellbeing garden"
         />
+
+        <div className="auth-visual-badges" aria-hidden="true">
+          {badges.map((badge, index) => (
+            <span key={badge} className={`auth-badge auth-badge-${index + 1}`}>{badge}</span>
+          ))}
+        </div>
 
         <div className="auth-copy">
           <p className="eyebrow">A kinder daily rhythm</p>
