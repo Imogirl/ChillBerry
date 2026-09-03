@@ -7,30 +7,35 @@ const moodMap = {
     suggestion: "Save this spark with a tiny creative activity.",
     plant: "Sun Sprout",
     color: "#ffc84d",
+    wellbeingScore: 5,
   },
   calm: {
     label: "Calm",
     suggestion: "Keep the softness going with three quiet breaths.",
     plant: "Mint Leaf",
     color: "#8be8b3",
+    wellbeingScore: 4,
   },
   tired: {
     label: "Tired",
     suggestion: "Try a two-minute stretch and drink some water.",
     plant: "Moon Bud",
     color: "#a9c7ff",
+    wellbeingScore: 3,
   },
   stressed: {
     label: "Stressed",
     suggestion: "Write one worry into the stress bubble and pop it.",
     plant: "Cloud Fern",
     color: "#d8c8ff",
+    wellbeingScore: 2,
   },
   sad: {
     label: "Sad",
     suggestion: "Pick one small comfort task and be gentle with yourself.",
     plant: "Peach Bloom",
     color: "#ffc7a8",
+    wellbeingScore: 1,
   },
 };
 
@@ -57,11 +62,49 @@ const yesterdayKey = () => {
 };
 
 const getProfileForUser = async (userId) => {
-  return ChillProfile.findOneAndUpdate(
+  const profile = await ChillProfile.findOneAndUpdate(
     { user: userId },
     { $setOnInsert: { user: userId } },
-    { new: true, upsert: true }
-  );
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  ).select("+statsInitialized +forestVersion");
+
+  let profileChanged = false;
+
+  if (!profile.statsInitialized) {
+    profile.lifetimeStats = {
+      checkIns: profile.moodHistory.length,
+      joysCompleted: profile.completedJoys.length,
+      stressReleases: profile.stressPops.length,
+      cozySessions: profile.cozySessions.length,
+      cozyMinutes: profile.cozySessions.reduce((total, session) => total + (session.minutes || 0), 0),
+      rescueSessions: profile.rescueSessions.length,
+      petCareActions: 0,
+    };
+
+    profile.statsInitialized = true;
+    profileChanged = true;
+  }
+
+  if ((profile.forestVersion || 0) < 2) {
+    profile.forestDays = profile.moodHistory.map((entry) => ({
+      date: entry.createdAt?.toISOString().slice(0, 10) || todayKey(),
+      mood: entry.mood,
+      label: entry.label,
+      plant: entry.plant,
+      color: entry.color,
+      wellbeingScore: moodMap[entry.mood]?.wellbeingScore || 3,
+      checkIns: 1,
+      plantedAt: entry.createdAt,
+    }));
+    profile.forestVersion = 2;
+    profileChanged = true;
+  }
+
+  if (profileChanged) {
+    await profile.save();
+  }
+
+  return profile;
 };
 
 const awardPoints = async (userId, points, update = {}) => {
@@ -111,7 +154,16 @@ export const checkInMood = async (req, res) => {
     plant: mood.plant,
     color: mood.color,
   });
-  profile.moodHistory = profile.moodHistory.slice(0, 30);
+  profile.forestDays.unshift({
+    date: todayKey(),
+    mood: req.body.mood,
+    label: mood.label,
+    plant: mood.plant,
+    color: mood.color,
+    wellbeingScore: mood.wellbeingScore,
+    checkIns: 1,
+  });
+  profile.lifetimeStats.checkIns += 1;
   profile.lastCheckInDate = todayKey();
 
   const user = await awardPoints(
@@ -149,7 +201,7 @@ export const completeJoy = async (req, res) => {
     category: joy.category,
     points: joy.points,
   });
-  profile.completedJoys = profile.completedJoys.slice(0, 40);
+  profile.lifetimeStats.joysCompleted += 1;
 
   const user = await awardPoints(req.user._id, joy.points);
   applyUnlocks(profile, user.chillPoints);
@@ -167,7 +219,7 @@ export const popStress = async (req, res) => {
 
   const profile = await getProfileForUser(req.user._id);
   profile.stressPops.unshift({ text: text.slice(0, 160) });
-  profile.stressPops = profile.stressPops.slice(0, 20);
+  profile.lifetimeStats.stressReleases += 1;
 
   const user = await awardPoints(req.user._id, 2);
   applyUnlocks(profile, user.chillPoints);
@@ -183,7 +235,8 @@ export const completeCozySession = async (req, res) => {
     scene: req.body.scene || "Soft Rain",
     minutes,
   });
-  profile.cozySessions = profile.cozySessions.slice(0, 20);
+  profile.lifetimeStats.cozySessions += 1;
+  profile.lifetimeStats.cozyMinutes += minutes;
 
   const user = await awardPoints(req.user._id, Math.ceil(minutes / 2));
   applyUnlocks(profile, user.chillPoints);
@@ -209,6 +262,8 @@ export const updatePet = async (req, res) => {
     return res.status(400).json({ message: "Please choose a valid pet action" });
   }
 
+  profile.lifetimeStats.petCareActions += 1;
+
   const user = await awardPoints(req.user._id, 3);
   applyUnlocks(profile, user.chillPoints);
   await profile.save();
@@ -219,7 +274,7 @@ export const updatePet = async (req, res) => {
 export const completeRescue = async (req, res) => {
   const profile = await getProfileForUser(req.user._id);
   profile.rescueSessions.unshift({});
-  profile.rescueSessions = profile.rescueSessions.slice(0, 20);
+  profile.lifetimeStats.rescueSessions += 1;
 
   const user = await awardPoints(req.user._id, 12);
   applyUnlocks(profile, user.chillPoints);

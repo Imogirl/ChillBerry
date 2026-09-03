@@ -8,6 +8,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  CircleHelp,
   CircleUserRound,
   CloudRain,
   Flame,
@@ -34,6 +35,11 @@ import berryGarden from "../assets/berry-garden.png";
 import berryCozy from "../assets/berry-cozy.png";
 import berryStress from "../assets/berry-stress.png";
 import berryCards from "../assets/berry-cards.png";
+import treeHappy from "../assets/tree-happy.png";
+import treeCalm from "../assets/tree-calm.png";
+import treeTired from "../assets/tree-tired.png";
+import treeStressed from "../assets/tree-stressed.png";
+import treeSad from "../assets/tree-sad.png";
 
 const navItems = [
   { to: "/", label: "Home", Icon: HomeIcon, color: "#ff5a8a", end: true },
@@ -95,12 +101,22 @@ const starterProgress = {
   streak: 0,
   lastCheckInDate: "",
   moodHistory: [],
+  forestDays: [],
   completedJoys: [],
   stressPops: [],
   cozySessions: [],
   rescueSessions: [],
   unlocks: ["Starter Garden"],
   pet: { name: "Berry", energy: 70, happiness: 75 },
+  lifetimeStats: {
+    checkIns: 0,
+    joysCompleted: 0,
+    stressReleases: 0,
+    cozySessions: 0,
+    cozyMinutes: 0,
+    rescueSessions: 0,
+    petCareActions: 0,
+  },
 };
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
@@ -124,13 +140,38 @@ const mergeProgress = (saved = {}) => ({
   ...starterProgress,
   ...saved,
   moodHistory: saved.moodHistory || [],
+  forestDays: saved.forestDays || [],
   completedJoys: saved.completedJoys || [],
   stressPops: saved.stressPops || [],
   cozySessions: saved.cozySessions || [],
   rescueSessions: saved.rescueSessions || [],
   unlocks: saved.unlocks || starterProgress.unlocks,
   pet: { ...starterProgress.pet, ...saved.pet },
+  lifetimeStats: { ...starterProgress.lifetimeStats, ...saved.lifetimeStats },
 });
+const userStorageId = (user) => user?._id || user?.id || user?.email || "guest";
+const progressStorageKey = (user) => `chillberry-progress:${userStorageId(user)}`;
+const moodScores = { happy: 5, calm: 4, tired: 3, stressed: 2, sad: 1 };
+const moodTreeImages = {
+  happy: treeHappy,
+  calm: treeCalm,
+  tired: treeTired,
+  stressed: treeStressed,
+  sad: treeSad,
+};
+const buildForestFromHistory = (history = []) => history.map((entry) => {
+    const date = entry.createdAt?.slice(0, 10);
+    return {
+      date,
+      mood: entry.mood || entry.id,
+      label: entry.label,
+      plant: entry.plant,
+      color: entry.color,
+      wellbeingScore: moodScores[entry.mood || entry.id] || 3,
+      checkIns: 1,
+      plantedAt: entry.createdAt,
+    };
+  });
 const normalizeProgress = (payload) => {
   if (!payload?.profile) return starterProgress;
   return mergeProgress({
@@ -148,8 +189,13 @@ const greeting = () => {
 
 function Home({ view = "home" }) {
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
   const [user, setUser] = useState(() => loadStored("user", null));
-  const [progress, setProgress] = useState(() => mergeProgress(loadStored("chillberry-progress", starterProgress)));
+  const guideStorageKey = user
+    ? `chillberry-guide-seen:${user._id || user.id || user.email || "member"}`
+    : "";
+  const userProgressKey = progressStorageKey(user);
+  const [progress, setProgress] = useState(() => mergeProgress(loadStored(userProgressKey, starterProgress)));
   const [selectedMood, setSelectedMood] = useState(null);
   const [notice, setNotice] = useState("");
   const [stressText, setStressText] = useState("");
@@ -162,7 +208,10 @@ function Home({ view = "home" }) {
   const [timerRunning, setTimerRunning] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [rescueStep, setRescueStep] = useState(0);
-  const token = localStorage.getItem("token");
+  const [showGuide, setShowGuide] = useState(() => Boolean(
+    token && user && guideStorageKey && !localStorage.getItem(guideStorageKey),
+  ));
+  const [guideStep, setGuideStep] = useState(0);
 
   useEffect(() => {
     if (!token) return;
@@ -173,12 +222,28 @@ function Home({ view = "home" }) {
   }, [token]);
 
   useEffect(() => {
-    localStorage.setItem("chillberry-progress", JSON.stringify(progress));
-  }, [progress]);
+    localStorage.setItem(userProgressKey, JSON.stringify(progress));
+  }, [progress, userProgressKey]);
 
   useEffect(() => {
     if (user) localStorage.setItem("user", JSON.stringify(user));
   }, [user]);
+
+  useEffect(() => {
+    if (!showGuide) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        if (guideStorageKey) localStorage.setItem(guideStorageKey, "true");
+        setShowGuide(false);
+      }
+    };
+    document.body.classList.add("guide-is-open");
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.classList.remove("guide-is-open");
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [guideStorageKey, showGuide]);
 
   useEffect(() => {
     if (!timerRunning || secondsLeft <= 0) return undefined;
@@ -196,7 +261,10 @@ function Home({ view = "home" }) {
   }, [secondsLeft, timerRunning]);
 
   const latestMood = progress.moodHistory[0];
-  const garden = progress.moodHistory.slice(0, 10);
+  const forest = progress.forestDays.length > 0
+    ? progress.forestDays
+    : buildForestFromHistory(progress.moodHistory);
+  const garden = forest;
   const completedToday = useMemo(() => new Set(progress.completedJoys
     .filter((joy) => joy.createdAt?.slice(0, 10) === todayKey())
     .map((joy) => joy.title)), [progress.completedJoys]);
@@ -233,7 +301,9 @@ function Home({ view = "home" }) {
       points: nextPoints,
       streak,
       lastCheckInDate: todayKey(),
-      moodHistory: [entry, ...progress.moodHistory].slice(0, 30),
+      moodHistory: [entry, ...progress.moodHistory],
+      forestDays: [{ ...entry, date: todayKey(), wellbeingScore: moodScores[mood.id], checkIns: 1, plantedAt: entry.createdAt }, ...progress.forestDays],
+      lifetimeStats: { ...progress.lifetimeStats, checkIns: progress.lifetimeStats.checkIns + 1 },
     }, nextPoints);
     setSelectedMood(entry);
     syncServer("/chill/mood", { mood: mood.id }, nextProgress);
@@ -244,7 +314,8 @@ function Home({ view = "home" }) {
     const nextProgress = applyUnlocks({
       ...progress,
       points: nextPoints,
-      completedJoys: [{ ...joy, createdAt: new Date().toISOString() }, ...progress.completedJoys].slice(0, 40),
+      completedJoys: [{ ...joy, createdAt: new Date().toISOString() }, ...progress.completedJoys],
+      lifetimeStats: { ...progress.lifetimeStats, joysCompleted: progress.lifetimeStats.joysCompleted + 1 },
     }, nextPoints);
     syncServer("/chill/joy", joy, nextProgress);
   };
@@ -261,7 +332,8 @@ function Home({ view = "home" }) {
     const nextProgress = applyUnlocks({
       ...progress,
       points: nextPoints,
-      stressPops: [{ text: worry, createdAt: new Date().toISOString() }, ...progress.stressPops].slice(0, 20),
+      stressPops: [{ text: worry, createdAt: new Date().toISOString() }, ...progress.stressPops],
+      lifetimeStats: { ...progress.lifetimeStats, stressReleases: progress.lifetimeStats.stressReleases + 1 },
     }, nextPoints);
     setStressText("");
     syncServer("/chill/stress", { text: worry }, nextProgress);
@@ -288,7 +360,12 @@ function Home({ view = "home" }) {
     const nextProgress = applyUnlocks({
       ...progress,
       points: nextPoints,
-      cozySessions: [{ scene, minutes, createdAt: new Date().toISOString() }, ...progress.cozySessions].slice(0, 20),
+      cozySessions: [{ scene, minutes, createdAt: new Date().toISOString() }, ...progress.cozySessions],
+      lifetimeStats: {
+        ...progress.lifetimeStats,
+        cozySessions: progress.lifetimeStats.cozySessions + 1,
+        cozyMinutes: progress.lifetimeStats.cozyMinutes + minutes,
+      },
     }, nextPoints);
     resetCozy();
     syncServer("/chill/cozy", { scene, minutes }, nextProgress);
@@ -302,14 +379,20 @@ function Home({ view = "home" }) {
     }
     if (action === "pat") pet.happiness = Math.min(100, pet.happiness + 6);
     const nextPoints = progress.points + 3;
-    syncServer("/chill/pet", { action }, applyUnlocks({ ...progress, points: nextPoints, pet }, nextPoints));
+    syncServer("/chill/pet", { action }, applyUnlocks({
+      ...progress,
+      points: nextPoints,
+      pet,
+      lifetimeStats: { ...progress.lifetimeStats, petCareActions: progress.lifetimeStats.petCareActions + 1 },
+    }, nextPoints));
   };
   const completeRescue = () => {
     const nextPoints = progress.points + 12;
     const nextProgress = applyUnlocks({
       ...progress,
       points: nextPoints,
-      rescueSessions: [{ completedAt: new Date().toISOString() }, ...progress.rescueSessions].slice(0, 20),
+      rescueSessions: [{ completedAt: new Date().toISOString() }, ...progress.rescueSessions],
+      lifetimeStats: { ...progress.lifetimeStats, rescueSessions: progress.lifetimeStats.rescueSessions + 1 },
     }, nextPoints);
     setRescueStep(0);
     syncServer("/chill/rescue", {}, nextProgress);
@@ -319,6 +402,18 @@ function Home({ view = "home" }) {
     localStorage.removeItem("user");
     setUser(null);
     navigate("/login");
+  };
+  const openGuide = () => {
+    setGuideStep(0);
+    setShowGuide(true);
+  };
+  const closeGuide = () => {
+    if (guideStorageKey) localStorage.setItem(guideStorageKey, "true");
+    setShowGuide(false);
+  };
+  const finishGuide = (destination = "/today") => {
+    closeGuide();
+    navigate(destination);
   };
 
   const sharedProps = {
@@ -332,6 +427,7 @@ function Home({ view = "home" }) {
     completeJoy,
     completeRescue,
     completedToday,
+    forest,
     garden,
     handleMood,
     latestMood,
@@ -369,15 +465,25 @@ function Home({ view = "home" }) {
 
   return (
     <main className="app-shell min-h-screen">
-      <SiteHeader user={user} logout={logout} />
+      <SiteHeader user={user} logout={logout} onOpenGuide={openGuide} />
       {notice && <NoticeToast notice={notice} onDismiss={() => setNotice("")} />}
+      {showGuide && (
+        <WelcomeGuide
+          step={guideStep}
+          user={user}
+          onBack={() => setGuideStep((current) => Math.max(0, current - 1))}
+          onNext={() => setGuideStep((current) => Math.min(2, current + 1))}
+          onClose={closeGuide}
+          onFinish={finishGuide}
+        />
+      )}
       {pages[view] || pages.home}
       <SiteFooter progress={progress} />
     </main>
   );
 }
 
-function SiteHeader({ user, logout }) {
+function SiteHeader({ user, logout, onOpenGuide }) {
   return (
     <header className="site-header">
       <div className="site-header-inner">
@@ -402,6 +508,7 @@ function SiteHeader({ user, logout }) {
         <div className="header-actions">
           {user ? (
             <>
+              <button className="icon-button guide-button" type="button" onClick={onOpenGuide} title="Quick guide" aria-label="Open quick guide"><CircleHelp size={19} /></button>
               <div className="user-chip"><CircleUserRound size={17} /><span>{user.name || "Berry Friend"}</span></div>
               <button className="icon-button" type="button" onClick={logout} title="Log out" aria-label="Log out"><LogOut size={19} /></button>
             </>
@@ -417,7 +524,80 @@ function SiteHeader({ user, logout }) {
   );
 }
 
-function LandingPage({ progress, garden, user, nextUnlock, unlockProgress }) {
+function WelcomeGuide({ step, user, onBack, onNext, onClose, onFinish }) {
+  const firstName = user?.name?.split(" ")[0] || "Berry friend";
+  const steps = [
+    {
+      eyebrow: "Welcome to your space",
+      title: `Hi ${firstName}, let’s make this feel easy.`,
+      copy: "ChillBerry is a gentle daily wellbeing space. Start small—one mood check-in is enough for today.",
+      image: berryLove,
+      color: "#ff6f9a",
+      Icon: Heart,
+      notes: ["No perfect answers", "Your progress saves automatically"],
+    },
+    {
+      eyebrow: "Your simple daily path",
+      title: "Check in, choose a tiny step, feel a little lighter.",
+      copy: "Visit Today to name your mood. Each check-in grows a plant in your Garden and builds your streak.",
+      image: berryMoods,
+      color: "#f5b93f",
+      Icon: Sun,
+      notes: ["Today · pick your mood", "Garden · see your journey"],
+    },
+    {
+      eyebrow: "Help for every kind of day",
+      title: "Choose what you need right now.",
+      copy: "Find tiny activities in Comfort, take a peaceful timer in Cozy, or use Rescue when everything feels like too much.",
+      image: berryCozy,
+      color: "#63b8e9",
+      Icon: Sparkles,
+      notes: ["Comfort · quick lift", "Cozy · slow down", "Rescue · guided reset"],
+    },
+  ];
+  const current = steps[step];
+  const GuideIcon = current.Icon;
+
+  return (
+    <div className="guide-overlay" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="welcome-guide" role="dialog" aria-modal="true" aria-labelledby="guide-title" style={{ "--guide-color": current.color }}>
+        <button className="guide-close" type="button" onClick={onClose} aria-label="Close guide" title="Close guide" autoFocus><X size={20} /></button>
+        <div className="guide-art" aria-hidden="true">
+          <span className="guide-art-glow" />
+          <img key={current.image} src={current.image} alt="" />
+          <span className="guide-art-pill"><GuideIcon size={15} /> Step {step + 1} of {steps.length}</span>
+        </div>
+        <div className="guide-content">
+          <p className="guide-eyebrow"><GuideIcon size={15} /> {current.eyebrow}</p>
+          <h2 id="guide-title">{current.title}</h2>
+          <p className="guide-copy">{current.copy}</p>
+          <div className="guide-notes">
+            {current.notes.map((note) => <span key={note}><Check size={15} /> {note}</span>)}
+          </div>
+          <div className="guide-footer">
+            <div className="guide-dots" aria-label={`Step ${step + 1} of ${steps.length}`}>
+              {steps.map((item, index) => <span key={item.title} className={index === step ? "is-active" : ""} />)}
+            </div>
+            <div className="guide-actions">
+              {step > 0 ? (
+                <button className="button button-quiet" type="button" onClick={onBack}><ChevronLeft size={17} /> Back</button>
+              ) : (
+                <button className="guide-skip" type="button" onClick={onClose}>Skip guide</button>
+              )}
+              {step < steps.length - 1 ? (
+                <button className="button button-primary" type="button" onClick={onNext}>Next <ArrowRight size={17} /></button>
+              ) : (
+                <button className="button button-primary" type="button" onClick={() => onFinish("/today")}>Start my check-in <ArrowRight size={17} /></button>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function LandingPage({ progress, forest, user, nextUnlock, unlockProgress }) {
   const quickCards = [
     { to: "/today", title: "Check in", copy: "Pick today's mood and grow a new sprout.", image: berryMoods, color: "#ffd75e" },
     { to: "/comfort", title: "Comfort tools", copy: "Tiny joys, notes, and a release bubble.", image: berryCards, color: "#ff87a8" },
@@ -438,7 +618,7 @@ function LandingPage({ progress, garden, user, nextUnlock, unlockProgress }) {
           <div className="hero-stats">
             <Stat value={progress.points} label="Chill points" icon={Sparkles} color="#ff5a8a" />
             <Stat value={progress.streak} label="Day streak" icon={Flame} color="#ff7a42" />
-            <Stat value={garden.length} label="Plants grown" icon={Flower2} color="#35a868" />
+            <Stat value={forest.length} label="Trees grown" icon={Flower2} color="#35a868" />
           </div>
         </div>
         <div className="home-hero-art">
@@ -506,26 +686,103 @@ function TodayPage({ latestMood, selectedMood, handleMood, progress, nextUnlock,
   );
 }
 
-function GardenPage({ garden, progress }) {
+function GardenPage({ garden, forest, progress }) {
+  const dateKeyFromOffset = (offset) => {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() - offset);
+    return date.toISOString().slice(0, 10);
+  };
+  const week = Array.from({ length: 7 }, (_, index) => {
+    const date = dateKeyFromOffset(6 - index);
+    const entries = forest.filter((tree) => tree.date === date);
+    return { date, entry: entries[0], treeCount: entries.length };
+  });
+  const previousWeekCount = Array.from({ length: 7 }, (_, index) => dateKeyFromOffset(13 - index))
+    .filter((date) => forest.some((day) => day.date === date)).length;
+  const thisWeekCount = week.filter((day) => day.entry).length;
+  const forestDaysCount = new Set(forest.map((tree) => tree.date).filter(Boolean)).size;
+  const rhythmMessage = thisWeekCount > previousWeekCount
+    ? "Your check-in rhythm is growing."
+    : thisWeekCount === previousWeekCount && thisWeekCount > 0
+      ? "You are keeping a steady rhythm."
+      : "A gentle fresh start is always here.";
+  const lifetime = progress.lifetimeStats;
+  const todayTime = Date.parse(`${dateKeyFromOffset(0)}T00:00:00Z`);
+  const rawVisibleTrees = garden.map((item, sourceIndex) => {
+    const treeTime = Date.parse(`${item.date || dateKeyFromOffset(0)}T00:00:00Z`);
+    const ageDays = Math.max(0, Math.floor((todayTime - treeTime) / 86400000));
+    return { item, sourceIndex, ageDays };
+  }).filter((tree) => tree.ageDays <= 13);
+  const dayTotals = rawVisibleTrees.reduce((totals, tree) => ({
+    ...totals,
+    [tree.item.date]: (totals[tree.item.date] || 0) + 1,
+  }), {});
+  const dayPositions = {};
+  const visibleTrees = rawVisibleTrees.map((tree) => {
+    const date = tree.item.date;
+    const position = dayPositions[date] || 0;
+    dayPositions[date] = position + 1;
+    const total = dayTotals[date] || 1;
+    const spreadPosition = total === 1 ? 50 : 5 + (position * 90) / (total - 1);
+    const depthSway = ((tree.ageDays * 17 + tree.sourceIndex * 7) % 11) - 5;
+    const left = Math.min(96, Math.max(4, spreadPosition + depthSway));
+    const scale = tree.ageDays <= 6
+      ? 1.18 - tree.ageDays * 0.09
+      : Math.max(0.24, 0.52 - (tree.ageDays - 7) * 0.047);
+    const bottom = tree.ageDays <= 6
+      ? 2 + tree.ageDays * 7.6
+      : 57 + (tree.ageDays - 7) * 2.5;
+    const opacity = tree.ageDays <= 6
+      ? 1
+      : Math.max(0.08, 0.46 - (tree.ageDays - 7) * 0.065);
+    return { ...tree, left, scale, bottom, opacity };
+  }).sort((first, second) => second.ageDays - first.ageDays);
+  const deepForestCount = garden.length - visibleTrees.length;
+
   return (
     <section className="page-shell garden-page">
-      <PageHero
-        eyebrow="Your mood garden"
-        title="Every feeling leaves something worth tending."
-        copy="Each check-in plants a new memory. Over time, your garden becomes a quiet record of how far you have come."
-        image={berryGarden}
-      />
-      <div className="content-grid two-one reverse">
+      <header className="forest-page-header">
+        <div><p className="eyebrow"><Flower2 size={15} /> Your mood forest</p><h1>Every feeling grows here.</h1><p>Each mood plants its own tree. New memories stay close while older ones settle softly into the distance.</p></div>
+        <img src={berryGarden} alt="" />
+      </header>
+      <div className="forest-layout">
         <div className="garden-bed">
+          <div className="forest-title-row"><div><p className="label">Every mood becomes a tree</p><h2>Your living mood forest</h2><p>Today grows closest to you. Each older day settles deeper into the landscape.</p></div><span>{forest.length} {forest.length === 1 ? "tree" : "trees"}</span></div>
           {garden.length > 0 ? (
-            <div className="garden-grid">
-              {garden.map((item, index) => (
-                <div className="plant" key={`${item.createdAt}-${index}`}>
-                  <span className={`plant-shape plant-${(index % 4) + 1}`} style={{ "--plant-color": item.color || "#68b889" }} />
-                  <strong>{item.plant || "Berry Sprout"}</strong>
-                  <small>{item.label || item.mood}</small>
-                </div>
+            <div className="forest-scene">
+              <span className="forest-sun" aria-hidden="true" />
+              <span className="forest-cloud forest-cloud-one" aria-hidden="true" />
+              <span className="forest-cloud forest-cloud-two" aria-hidden="true" />
+              <div className="forest-hills" aria-hidden="true" />
+              <div className="deep-tree-line" aria-hidden="true" />
+              <div className="forest-path" aria-hidden="true" />
+              {visibleTrees.map(({ item, sourceIndex, ageDays, left, scale, bottom, opacity }) => (
+                <article
+                  className={`forest-tree tree-style-${(sourceIndex % 4) + 1} ${ageDays > 6 ? "is-distant" : ""}`}
+                  key={`${item.plantedAt || item.createdAt || item.date}-${sourceIndex}`}
+                  style={{
+                    "--tree-color": item.color || "#68b889",
+                    "--tree-scale": scale,
+                    "--tree-delay": `${Math.min(sourceIndex * 22, 440)}ms`,
+                    "--tree-left": `${left}%`,
+                    "--tree-bottom": `${bottom}%`,
+                    "--tree-opacity": opacity,
+                    "--tree-layer": 100 - ageDays,
+                  }}
+                >
+                  <div className="tree-visual" aria-hidden="true">
+                    <span className="tree-shadow" />
+                    <img className="tree-sprite" src={moodTreeImages[item.mood] || treeCalm} alt="" />
+                  </div>
+                  <div className="tree-info">
+                    <strong>{item.plant || "Berry Tree"}</strong>
+                    <span><i style={{ background: item.color || "#68b889" }} />{item.label || item.mood}</span>
+                    <time dateTime={item.date}>{ageDays === 0 ? "Today" : item.date ? new Date(`${item.date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }) : "Today"}</time>
+                  </div>
+                </article>
               ))}
+              <div className="forest-front-grass" aria-hidden="true" />
+              {deepForestCount > 0 && <span className="deep-forest-count"><Leaf size={14} /> {deepForestCount} older {deepForestCount === 1 ? "tree lives" : "trees live"} beyond the mist</span>}
             </div>
           ) : (
             <div className="empty-garden">
@@ -537,11 +794,31 @@ function GardenPage({ garden, progress }) {
           )}
         </div>
         <div className="panel garden-summary">
-          <MiniStat value={progress.moodHistory.length} label="Check-ins" />
+          <div className="garden-summary-title"><p className="label">Lifetime growth</p><h3>Your journey so far</h3></div>
+          <MiniStat value={lifetime.checkIns} label="Mood check-ins" />
+          <MiniStat value={forest.length} label="Trees grown" />
+          <MiniStat value={forestDaysCount} label="Forest days" />
           <MiniStat value={progress.streak} label="Current streak" />
+          <MiniStat value={lifetime.joysCompleted} label="Tiny joys" />
+          <MiniStat value={lifetime.cozyMinutes} label="Cozy minutes" />
           <MiniStat value={progress.unlocks.length} label="Rewards" />
         </div>
       </div>
+      <section className="panel forest-week" aria-labelledby="forest-week-title">
+        <div className="forest-week-head">
+          <div><p className="label">Your improvement timeline</p><h2 id="forest-week-title">The last seven days</h2><p>{rhythmMessage}</p></div>
+          <span className="week-score"><strong>{thisWeekCount}</strong>/7 days tended</span>
+        </div>
+        <div className="week-strip">
+          {week.map(({ date, entry, treeCount }) => (
+            <div className={`week-day ${entry ? "is-tended" : ""}`} key={date} style={{ "--day-color": entry?.color || "#dfe8e1" }}>
+              <span>{new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "short", timeZone: "UTC" })}</span>
+              <i>{entry ? <Leaf size={17} /> : null}{treeCount > 1 && <b>{treeCount}</b>}</i>
+              <small>{treeCount > 0 ? `${treeCount} ${treeCount === 1 ? "tree" : "trees"}` : "Rest"}</small>
+            </div>
+          ))}
+        </div>
+      </section>
     </section>
   );
 }
@@ -738,6 +1015,7 @@ function Meter({ label, value, color }) {
   return <div><div className="meter-label"><span>{label}</span><span>{value}%</span></div><ProgressBar value={value} color={color} /></div>;
 }
 function SiteFooter({ progress }) {
+  const lifetime = progress.lifetimeStats;
   return (
     <footer className="site-footer">
       <div className="site-footer-inner">
@@ -746,8 +1024,8 @@ function SiteFooter({ progress }) {
           <p>Small moments make a kinder day.</p>
         </div>
         <div className="footer-stats">
-          <MiniStat value={progress.completedJoys.length} label="Joys" />
-          <MiniStat value={progress.stressPops.length} label="Released" />
+          <MiniStat value={lifetime.joysCompleted} label="Joys" />
+          <MiniStat value={lifetime.stressReleases} label="Released" />
           <MiniStat value={progress.unlocks.length} label="Rewards" />
         </div>
       </div>

@@ -23,6 +23,29 @@ const joySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const forestDaySchema = new mongoose.Schema(
+  {
+    date: {
+      type: String,
+      required: true,
+    },
+    mood: String,
+    label: String,
+    plant: String,
+    color: String,
+    wellbeingScore: Number,
+    checkIns: {
+      type: Number,
+      default: 1,
+    },
+    plantedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
 const chillProfileSchema = new mongoose.Schema(
   {
     user: {
@@ -32,6 +55,7 @@ const chillProfileSchema = new mongoose.Schema(
       unique: true,
     },
     moodHistory: [moodEntrySchema],
+    forestDays: [forestDaySchema],
     completedJoys: [joySchema],
     stressPops: [
       {
@@ -81,6 +105,25 @@ const chillProfileSchema = new mongoose.Schema(
       default: ["Starter Garden"],
     },
     lastCheckInDate: String,
+    lifetimeStats: {
+      checkIns: { type: Number, default: 0 },
+      joysCompleted: { type: Number, default: 0 },
+      stressReleases: { type: Number, default: 0 },
+      cozySessions: { type: Number, default: 0 },
+      cozyMinutes: { type: Number, default: 0 },
+      rescueSessions: { type: Number, default: 0 },
+      petCareActions: { type: Number, default: 0 },
+    },
+    statsInitialized: {
+      type: Boolean,
+      default: false,
+      select: false,
+    },
+    forestVersion: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
   },
   { timestamps: true }
 );

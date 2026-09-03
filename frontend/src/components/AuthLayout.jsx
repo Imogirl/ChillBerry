@@ -1,4 +1,5 @@
 import { CheckCircle2, Leaf } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import loginImage from "../assets/chillberry-garden.png";
 import registerImage from "../assets/register-garden.png";
@@ -11,13 +12,23 @@ const benefits = [
 
 function AuthLayout({ children, mode }) {
   const isRegister = mode === "register";
+  const previousMode = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return sessionStorage.getItem("chillberry-auth-mode");
+  }, []);
+  const transitionClass =
+    previousMode && previousMode !== mode ? `auth-from-${previousMode}` : "auth-entry";
   const visualImage = isRegister ? registerImage : loginImage;
   const badges = isRegister
     ? ["New sprout", "Fresh start", "Berry pass"]
     : ["Welcome back", "Garden saved", "Soft landing"];
 
+  useEffect(() => {
+    sessionStorage.setItem("chillberry-auth-mode", mode);
+  }, [mode]);
+
   return (
-    <main className={`auth-shell auth-${mode}`}>
+    <main className={`auth-shell auth-${mode} ${transitionClass}`}>
       <section className="auth-visual" aria-label="ChillBerry garden">
         <Link to="/" className="brand-lockup">
           <span className="brand-mark"><Leaf size={18} /></span>
@@ -28,6 +39,12 @@ function AuthLayout({ children, mode }) {
           src={visualImage}
           alt="Berry resting in the ChillBerry wellbeing garden"
         />
+
+        <div className="auth-transition-fireworks" aria-hidden="true">
+          {Array.from({ length: 18 }).map((_, index) => (
+            <span key={index} className={`auth-firework-particle auth-firework-particle-${index + 1}`} />
+          ))}
+        </div>
 
         <div className="auth-visual-badges" aria-hidden="true">
           {badges.map((badge, index) => (
