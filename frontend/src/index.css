@@ -1225,8 +1225,12 @@ body.guide-is-open {
 
 .forest-scene::after {
   z-index: 3;
-  background: linear-gradient(180deg, rgba(242, 235, 255, 0.08), transparent 32%, rgba(255, 244, 212, 0.03) 70%);
+  background:
+    radial-gradient(circle, rgba(255, 250, 202, 0.8) 0 1px, transparent 2px) 18% 62% / 83px 97px,
+    radial-gradient(circle, rgba(255, 255, 255, 0.72) 0 1px, transparent 2px) 67% 48% / 117px 109px,
+    linear-gradient(180deg, rgba(242, 235, 255, 0.08), transparent 32%, rgba(255, 244, 212, 0.03) 70%);
   mix-blend-mode: screen;
+  animation: forest-light-drift 14s ease-in-out infinite alternate;
 }
 
 .forest-sun {
@@ -1344,27 +1348,39 @@ body.guide-is-open {
   display: flex;
   min-width: 0;
   width: 190px;
-  min-height: 330px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  border-radius: 90px 90px 13px 13px;
-  padding: 0 7px 8px;
+  height: 270px;
+  border: 0;
+  border-radius: 48%;
+  padding: 0;
   text-align: center;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
   opacity: var(--tree-opacity);
   transform: translateX(-50%) scale(var(--tree-scale));
   transform-origin: center bottom;
-  animation: forest-tree-arrive 520ms var(--tree-delay) cubic-bezier(0.2, 0.82, 0.2, 1) both;
+  animation: forest-tree-arrive 520ms var(--tree-delay) cubic-bezier(0.2, 0.82, 0.2, 1) backwards;
   transition: filter 180ms ease, opacity 180ms ease, transform 180ms ease;
   filter: drop-shadow(0 13px 12px rgba(26, 63, 38, 0.17));
 }
 
 .forest-tree:hover {
   z-index: 120;
-  background: rgba(255, 255, 255, 0.26);
-  filter: saturate(1.08);
+  filter: saturate(1.13) drop-shadow(0 18px 16px rgba(26, 63, 38, 0.24));
   opacity: 1;
-  transform: translateX(-50%) scale(calc(var(--tree-scale) + 0.07));
+  transform: translateX(-50%) translateY(-7px) scale(var(--tree-scale));
+}
+
+.forest-tree:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.92);
+  outline-offset: 4px;
+}
+
+.forest-tree.is-selected {
+  z-index: 140;
+  opacity: 1;
+  filter: saturate(1.12) drop-shadow(0 16px 14px rgba(26, 63, 38, 0.22));
+  transform: translateX(-50%) translateY(-7px) scale(var(--tree-scale));
 }
 
 .tree-visual {
@@ -1384,6 +1400,9 @@ body.guide-is-open {
   filter: drop-shadow(0 16px 12px rgba(31, 58, 38, 0.25));
   user-select: none;
   pointer-events: none;
+  transform-origin: 50% 100%;
+  animation: tree-breathe 5.5s ease-in-out infinite alternate;
+  animation-delay: var(--tree-sway-delay);
 }
 
 .tree-shadow {
@@ -1396,6 +1415,41 @@ body.guide-is-open {
   background: rgba(42, 91, 54, 0.18);
   filter: blur(2px);
   transform: translateX(-50%);
+  transition: width 240ms ease, opacity 240ms ease, background 240ms ease;
+}
+
+.forest-tree:is(:hover, .is-selected) .tree-shadow {
+  width: 136px;
+  opacity: 0.82;
+  background: color-mix(in srgb, var(--tree-color) 34%, rgba(42, 91, 54, 0.22));
+  animation: tree-shadow-pulse 1.8s ease-in-out infinite;
+}
+
+.tree-magic {
+  position: absolute;
+  z-index: 6;
+  width: 9px;
+  height: 9px;
+  opacity: 0;
+  pointer-events: none;
+  background: #fff8b8;
+  clip-path: polygon(50% 0, 62% 37%, 100% 50%, 62% 63%, 50% 100%, 38% 63%, 0 50%, 38% 37%);
+  filter: drop-shadow(0 0 6px #fff3a0);
+}
+
+.tree-magic-one { left: 18%; top: 28%; }
+.tree-magic-two { right: 15%; top: 18%; width: 7px; height: 7px; }
+.tree-magic-three { right: 7%; top: 52%; width: 6px; height: 6px; }
+
+.forest-tree:is(:hover, .is-selected) .tree-magic {
+  animation: tree-magic-rise 1.7s ease-out infinite;
+}
+
+.forest-tree:is(:hover, .is-selected) .tree-magic-two { animation-delay: 420ms; }
+.forest-tree:is(:hover, .is-selected) .tree-magic-three { animation-delay: 860ms; }
+
+.forest-tree:is(:hover, .is-selected) .tree-sprite {
+  filter: brightness(1.06) saturate(1.08) drop-shadow(0 18px 14px rgba(31, 58, 38, 0.28));
 }
 
 .tree-trunk {
@@ -1698,21 +1752,165 @@ body.guide-is-open {
   filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.9));
 }
 
-.tree-info {
-  position: relative;
-  z-index: 4;
-  width: 78%;
-  min-height: 66px;
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: 10px;
-  padding: 8px 6px;
-  background: rgba(255, 255, 255, 0.76);
-  box-shadow: 0 8px 18px rgba(54, 99, 66, 0.08);
-  backdrop-filter: blur(6px);
+.tree-popup {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  z-index: 170;
+  display: grid;
+  width: min(430px, calc(100% - 32px));
+  grid-template-columns: 92px 1fr;
+  gap: 15px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 24px;
+  padding: 14px 46px 14px 14px;
+  color: #35493b;
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--popup-color) 28%, transparent), transparent 34%),
+    rgba(255, 255, 255, 0.88);
+  box-shadow: 0 24px 60px rgba(27, 62, 38, 0.28), inset 0 1px rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px) saturate(1.25);
+  transform: translateX(-50%);
+  animation: tree-popup-in 360ms cubic-bezier(0.18, 0.9, 0.22, 1.18) both;
 }
 
-.forest-tree.is-distant .tree-info {
-  display: none;
+.tree-popup::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+  box-shadow: inset 4px 0 var(--popup-color);
+}
+
+.tree-popup > img {
+  width: 92px;
+  height: 104px;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 9px 8px rgba(42, 76, 49, 0.2));
+  animation: popup-tree-float 2.8s ease-in-out infinite alternate;
+}
+
+.tree-popup-glow {
+  position: absolute;
+  left: 82px;
+  top: 11px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--popup-color);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--popup-color) 18%, transparent), 0 8px 18px color-mix(in srgb, var(--popup-color) 32%, transparent);
+}
+
+.tree-popup-copy {
+  min-width: 0;
+}
+
+.tree-popup-kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: color-mix(in srgb, var(--popup-color) 72%, #31473a);
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tree-popup-kicker i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--popup-color);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--popup-color) 18%, transparent);
+}
+
+.tree-popup-copy > strong {
+  display: block;
+  margin-top: 4px;
+  font-family: "Nunito", sans-serif;
+  font-size: 21px;
+  font-weight: 950;
+  letter-spacing: -0.03em;
+}
+
+.tree-popup-copy > p {
+  margin-top: 3px;
+  color: #68776d;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.tree-popup-meta {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin-top: 9px;
+}
+
+.tree-popup-meta span,
+.tree-popup-meta time {
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.tree-popup-meta span {
+  color: #fff;
+  background: var(--popup-color);
+  text-transform: capitalize;
+}
+
+.tree-popup-meta time {
+  color: #65736a;
+  background: rgba(77, 112, 86, 0.08);
+}
+
+.tree-popup-close {
+  position: absolute;
+  top: 11px;
+  right: 11px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #5f7065;
+  background: rgba(75, 105, 83, 0.09);
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.tree-popup-close:hover {
+  color: #fff;
+  background: var(--popup-color);
+  transform: rotate(8deg) scale(1.06);
+}
+
+.forest-click-hint {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  z-index: 132;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #486451;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 6px 18px rgba(42, 78, 49, 0.1);
+  font-size: 10px;
+  font-weight: 850;
+  pointer-events: none;
+  backdrop-filter: blur(7px);
 }
 
 .deep-forest-count {
@@ -1733,47 +1931,6 @@ body.guide-is-open {
   font-weight: 900;
   backdrop-filter: blur(7px);
   transform: translateX(-50%);
-}
-
-.tree-info strong,
-.tree-info span,
-.tree-info time {
-  display: block;
-}
-
-.tree-info strong {
-  overflow: hidden;
-  color: #344b3c;
-  font-size: 11px;
-  font-weight: 950;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tree-info span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  margin-top: 3px;
-  color: #6d7d72;
-  font-size: 9px;
-  font-weight: 850;
-  text-transform: capitalize;
-}
-
-.tree-info span i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.tree-info time {
-  margin-top: 4px;
-  color: #929c95;
-  font-size: 8px;
-  font-weight: 900;
-  text-transform: uppercase;
 }
 
 .empty-garden {
@@ -2977,6 +3134,37 @@ body.guide-is-open {
   to { opacity: var(--tree-opacity); transform: translateX(-50%) translateY(0) scale(var(--tree-scale)); }
 }
 
+@keyframes tree-breathe {
+  from { transform: rotate(calc(var(--tree-tilt) - 0.7deg)) translateY(0); }
+  to { transform: rotate(calc(var(--tree-tilt) + 0.7deg)) translateY(-2px); }
+}
+
+@keyframes forest-light-drift {
+  from { background-position: 18% 62%, 67% 48%, 0 0; }
+  to { background-position: 22% 58%, 63% 51%, 0 0; }
+}
+
+@keyframes tree-popup-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(28px) scale(0.9); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+@keyframes popup-tree-float {
+  from { transform: translateY(1px) rotate(-1deg); }
+  to { transform: translateY(-4px) rotate(1deg); }
+}
+
+@keyframes tree-shadow-pulse {
+  0%, 100% { transform: translateX(-50%) scaleX(0.94); }
+  50% { transform: translateX(-50%) scaleX(1.04); }
+}
+
+@keyframes tree-magic-rise {
+  0% { opacity: 0; transform: translateY(10px) scale(0.5) rotate(0); }
+  28% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-20px) scale(1.15) rotate(75deg); }
+}
+
 @keyframes guide-overlay-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -3390,13 +3578,48 @@ body.guide-is-open {
   }
 
   .forest-tree {
-    width: 158px;
-    min-height: 286px;
+    width: 116px;
+    height: 165px;
   }
 
   .tree-visual {
-    width: 158px;
-    height: 225px;
+    width: 116px;
+    height: 165px;
+  }
+
+  .tree-popup {
+    bottom: 15px;
+    width: calc(100% - 20px);
+    grid-template-columns: 72px 1fr;
+    gap: 10px;
+    border-radius: 19px;
+    padding: 11px 39px 11px 10px;
+  }
+
+  .tree-popup > img {
+    width: 72px;
+    height: 90px;
+  }
+
+  .tree-popup-glow {
+    left: 63px;
+    top: 7px;
+    transform: scale(0.82);
+  }
+
+  .tree-popup-copy > strong {
+    font-size: 17px;
+  }
+
+  .tree-popup-copy > p {
+    display: none;
+  }
+
+  .tree-popup-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 7px;
   }
 
   .garden-summary {
