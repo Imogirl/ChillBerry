@@ -40,6 +40,12 @@ import treeCalm from "../assets/tree-calm.png";
 import treeTired from "../assets/tree-tired.png";
 import treeStressed from "../assets/tree-stressed.png";
 import treeSad from "../assets/tree-sad.png";
+import todayMoodStilllife from "../assets/today-mood-stilllife.png";
+import moodHappyCharacter from "../assets/mood-happy-character-v2.png";
+import moodCalmCharacter from "../assets/mood-calm-character-v2.png";
+import moodTiredCharacter from "../assets/mood-tired-character-v2.png";
+import moodStressedCharacter from "../assets/mood-stressed-character-v2.png";
+import moodLowCharacter from "../assets/mood-low-character-v2.png";
 
 const navItems = [
   { to: "/", label: "Home", Icon: HomeIcon, color: "#ff5a8a", end: true },
@@ -158,6 +164,13 @@ const moodTreeImages = {
   tired: treeTired,
   stressed: treeStressed,
   sad: treeSad,
+};
+const moodCardImages = {
+  happy: moodHappyCharacter,
+  calm: moodCalmCharacter,
+  tired: moodTiredCharacter,
+  stressed: moodStressedCharacter,
+  sad: moodLowCharacter,
 };
 const buildForestFromHistory = (history = []) => history.map((entry) => {
     const date = entry.createdAt?.slice(0, 10);
@@ -649,25 +662,62 @@ function LandingPage({ progress, forest, user, nextUnlock, unlockProgress }) {
 
 function TodayPage({ latestMood, selectedMood, handleMood, progress, nextUnlock, unlockProgress, user }) {
   const currentMood = selectedMood || latestMood;
+  const todayLabel = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
+  const currentMoodId = currentMood?.mood || currentMood?.id;
+  const currentMoodDetails = moods.find((mood) => mood.id === currentMoodId);
+  const [capsuleNote, setCapsuleNote] = useState(() => localStorage.getItem(`chillberry-capsule:${todayKey()}`) || "");
+  const [capsuleSaved, setCapsuleSaved] = useState(false);
+  const berryMessages = {
+    happy: "That light in you is worth noticing. Let us give it somewhere kind to go.",
+    calm: "You found a quiet pocket today. There is no need to hurry out of it.",
+    tired: "You do not need more discipline right now. You may simply need a softer pace.",
+    stressed: "You are carrying a lot. We can put one small piece of it down together.",
+    sad: "You do not have to brighten up for me. I can sit beside this feeling with you.",
+  };
+  const needSpaces = [
+    { to: "/rescue", label: "Release", title: "Put something down", copy: "A guided reset for the thought that feels loudest.", Icon: Zap, color: "#9a6e9f", action: "Open rescue" },
+    { to: "/cozy", label: "Restore", title: "Borrow three quiet minutes", copy: "A soft timer, a slower breath, and no pressure.", Icon: TimerReset, color: "#688aa0", action: "Enter cozy" },
+    { to: "/comfort", label: "Reconnect", title: "Find one warm thing", copy: "A tiny activity or kind note chosen for this moment.", Icon: Heart, color: "#c8736f", action: "Find comfort" },
+  ];
+  const saveCapsule = () => {
+    if (!capsuleNote.trim()) return;
+    localStorage.setItem(`chillberry-capsule:${todayKey()}`, capsuleNote.trim());
+    setCapsuleSaved(true);
+  };
   return (
     <section className="page-shell today-page">
-      <PageHero
-        eyebrow={`${greeting()}${user?.name ? `, ${user.name.split(" ")[0]}` : ""}`}
-        title="How are you arriving today?"
-        copy="There is no wrong answer. Choose the feeling that comes closest and ChillBerry will save it."
-        image={berryMoods}
-      />
-      <div className="content-grid two-one">
-        <div className="panel p-4 sm:p-6">
+      <header className="today-hero">
+        <img src={todayMoodStilllife} alt="Handcrafted glass berries resting in a peaceful sunlit garden studio" />
+        <div className="today-hero-shade" />
+        <div className="today-hero-copy">
+          <p className="today-date"><span />{todayLabel}</p>
+          <p className="eyebrow"><Sparkles size={15} /> {greeting()}{user?.name ? `, ${user.name.split(" ")[0]}` : ""}</p>
+          <h1>Meet yourself<br /><em>where you are.</em></h1>
+          <p>Take a quiet second. You do not have to fix the feeling; just notice it.</p>
+          <div className="today-hero-meta">
+            <span><Flame size={17} /> <strong>{progress.streak}</strong> day rhythm</span>
+            <span><Flower2 size={17} /> <strong>{progress.moodHistory.length}</strong> moments noticed</span>
+          </div>
+        </div>
+        <div className="today-hero-caption"><Leaf size={15} /><span>Your daily pause</span><strong>01</strong></div>
+      </header>
+
+      <div className="today-section-heading">
+        <div><p className="label">A moment of honesty</p><h2>What is the weather inside?</h2></div>
+        <p>Pick the closest feeling. It can change later.</p>
+      </div>
+
+      <div className="today-checkin-layout">
+        <div className="panel today-mood-panel">
           <div className="mood-grid">
-            {moods.map((mood) => {
-              const Icon = mood.Icon;
+            {moods.map((mood, index) => {
               const active = currentMood?.mood === mood.id || currentMood?.id === mood.id;
               return (
-                <button key={mood.id} type="button" onClick={() => handleMood(mood)} aria-pressed={active} className={`mood-option ${active ? "is-active" : ""}`} style={{ "--mood-color": mood.color }}>
-                  <span className="mood-icon"><Icon size={22} /></span>
-                  <strong>{mood.label}</strong>
-                  <small>{mood.tone}</small>
+                <button key={mood.id} type="button" onClick={() => handleMood(mood)} aria-pressed={active} className={`mood-option mood-${mood.id} ${active ? "is-active" : ""}`} style={{ "--mood-color": mood.color }}>
+                  <span className="mood-number">0{index + 1}</span>
+                  <span className="mood-object"><img src={moodCardImages[mood.id]} alt="" /></span>
+                  <span className="mood-card-copy"><strong>{mood.label}</strong><small>{mood.tone}</small></span>
+                  <span className="mood-select">{active ? <Check size={15} strokeWidth={3} /> : <ArrowRight size={15} />}</span>
                 </button>
               );
             })}
@@ -678,10 +728,58 @@ function TodayPage({ latestMood, selectedMood, handleMood, progress, nextUnlock,
               <p className="label">A gentle next step</p>
               <p>{currentMood?.suggestion || "Choose a mood and your first tiny comfort suggestion will appear here."}</p>
             </div>
+            <Link to="/comfort" className="suggestion-link" aria-label="Open comfort tools"><ArrowRight size={18} /></Link>
           </div>
         </div>
         <RewardProgress progress={progress} nextUnlock={nextUnlock} unlockProgress={unlockProgress} />
       </div>
+
+      <section className="berry-response" style={{ "--response-color": currentMoodDetails?.color || "#68b889" }}>
+        <div className="berry-response-stage">
+          <span className="berry-response-orbit orbit-one" />
+          <span className="berry-response-orbit orbit-two" />
+          <img src={moodCardImages[currentMoodId] || moodCalmCharacter} alt="Your ChillBerry mood companion" />
+          <span className="berry-ground-shadow" />
+        </div>
+        <div className="berry-response-copy">
+          <p className="label">A note from your berry</p>
+          <h2>{currentMoodDetails ? `${currentMoodDetails.label} can be here.` : "I am ready when you are."}</h2>
+          <p>{currentMoodDetails ? berryMessages[currentMoodDetails.id] : "Choose the feeling above that comes closest. You do not need the perfect word."}</p>
+          <div className="berry-whisper"><Sparkles size={16} /><span>{currentMoodDetails?.suggestion || "One honest check-in is enough for this moment."}</span></div>
+        </div>
+      </section>
+
+      <section className="need-section">
+        <div className="today-section-heading compact">
+          <div><p className="label">Choose what you need</p><h2>Where should we go from here?</h2></div>
+          <p>Three different doors. There is no wrong one.</p>
+        </div>
+        <div className="need-grid">
+          {needSpaces.map(({ to, label, title, copy, Icon, color, action }, index) => (
+            <Link to={to} className="need-card" style={{ "--need-color": color }} key={label}>
+              <div className="need-card-index">0{index + 1}</div>
+              <div className="need-object"><span><Icon size={28} /></span><i /><i /></div>
+              <p>{label}</p><h3>{title}</h3><span>{copy}</span>
+              <div className="need-action">{action}<ArrowRight size={16} /></div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="today-keepsake-grid">
+        <article className={`feeling-seed ${currentMoodDetails ? "is-planted" : ""}`} style={{ "--seed-color": currentMoodDetails?.color || "#68b889" }}>
+          <div className="seed-copy"><p className="label">Your feeling, planted</p><h2>{currentMoodDetails ? `${currentMoodDetails.plant} joined your garden.` : "A seed is waiting for you."}</h2><p>{currentMoodDetails ? "This feeling is now part of your story, not the whole story." : "Choose a mood above and its plant will take root here."}</p></div>
+          <div className="seed-scene"><span className="seed-sun" /><span className="seed-stem" /><span className="seed-leaf leaf-left" /><span className="seed-leaf leaf-right" /><span className="seed-bloom"><Leaf size={20} /></span><i /></div>
+          <Link to="/garden" className="seed-link">Visit your garden <ArrowRight size={16} /></Link>
+        </article>
+
+        <article className="time-capsule">
+          <div className="capsule-top"><div><p className="label">Tonight's time capsule</p><h2>Leave a note for later.</h2></div><span><Star size={21} /></span></div>
+          <p>What should tonight's version of you remember about this moment?</p>
+          <textarea value={capsuleNote} onChange={(event) => { setCapsuleNote(event.target.value); setCapsuleSaved(false); }} maxLength={180} placeholder="Maybe I need to remember..." aria-label="A note for yourself tonight" />
+          <div className="capsule-footer"><small>{capsuleNote.length}/180</small><button type="button" onClick={saveCapsule} disabled={!capsuleNote.trim()}>{capsuleSaved ? <><Check size={16} /> Saved for tonight</> : <>Seal this note <ArrowRight size={16} /></>}</button></div>
+        </article>
+      </section>
     </section>
   );
 }
