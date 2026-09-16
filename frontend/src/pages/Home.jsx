@@ -29,6 +29,7 @@ import {
   Zap,
 } from "lucide-react";
 import api from "../services/api";
+import MoodGarden from "../components/MoodGarden";
 import berryLove from "../assets/berry-love.png";
 import berryMoods from "../assets/berry-moods.png";
 import berryGarden from "../assets/berry-garden.png";
@@ -785,7 +786,7 @@ function TodayPage({ latestMood, selectedMood, handleMood, progress, nextUnlock,
 }
 
 function GardenPage({ garden, forest, progress }) {
-  const [selectedTreeId, setSelectedTreeId] = useState(null);
+
   const dateKeyFromOffset = (offset) => {
     const date = new Date();
     date.setUTCDate(date.getUTCDate() - offset);
@@ -806,123 +807,14 @@ function GardenPage({ garden, forest, progress }) {
       ? "You are keeping a steady rhythm."
       : "A gentle fresh start is always here.";
   const lifetime = progress.lifetimeStats;
-  const todayTime = Date.parse(`${dateKeyFromOffset(0)}T00:00:00Z`);
-  const rawVisibleTrees = garden.map((item, sourceIndex) => {
-    const treeTime = Date.parse(`${item.date || dateKeyFromOffset(0)}T00:00:00Z`);
-    const ageDays = Math.max(0, Math.floor((todayTime - treeTime) / 86400000));
-    return { item, sourceIndex, ageDays };
-  }).filter((tree) => tree.ageDays <= 13)
-    .sort((first, second) => first.ageDays - second.ageDays || first.sourceIndex - second.sourceIndex);
-  const forestPlots = [
-    { left: 17, bottom: 1, scale: 1, opacity: 1, layer: 112 },
-    { left: 51, bottom: 6, scale: 0.92, opacity: 1, layer: 108 },
-    { left: 84, bottom: 2, scale: 0.97, opacity: 1, layer: 110 },
-    { left: 68, bottom: 21, scale: 0.77, opacity: 0.97, layer: 88 },
-    { left: 30, bottom: 16, scale: 0.83, opacity: 0.98, layer: 92 },
-    { left: 91, bottom: 24, scale: 0.71, opacity: 0.94, layer: 84 },
-    { left: 9, bottom: 35, scale: 0.57, opacity: 0.86, layer: 66 },
-    { left: 44, bottom: 30, scale: 0.63, opacity: 0.9, layer: 72 },
-    { left: 75, bottom: 39, scale: 0.5, opacity: 0.8, layer: 60 },
-    { left: 94, bottom: 33, scale: 0.58, opacity: 0.84, layer: 68 },
-    { left: 27, bottom: 50, scale: 0.38, opacity: 0.63, layer: 42 },
-    { left: 60, bottom: 45, scale: 0.43, opacity: 0.7, layer: 48 },
-    { left: 83, bottom: 54, scale: 0.31, opacity: 0.53, layer: 36 },
-    { left: 7, bottom: 48, scale: 0.39, opacity: 0.62, layer: 44 },
-  ];
-  const visibleTrees = rawVisibleTrees.slice(0, forestPlots.length).map((tree, plotIndex) => {
-    const plot = forestPlots[plotIndex];
-    const treeId = `${tree.item.plantedAt || tree.item.createdAt || tree.item.date}-${tree.sourceIndex}`;
-    return { ...tree, treeId, ...plot };
-  }).sort((first, second) => first.layer - second.layer);
-  const selectedTree = visibleTrees.find((tree) => tree.treeId === selectedTreeId);
-  const selectedMoodMeta = moods.find((mood) => mood.id === selectedTree?.item.mood);
-  const deepForestCount = garden.length - visibleTrees.length;
-
   return (
     <section className="page-shell garden-page">
       <header className="forest-page-header">
-        <div><p className="eyebrow"><Flower2 size={15} /> Your mood forest</p><h1>Every feeling grows here.</h1><p>Each mood plants its own tree. New memories stay close while older ones settle softly into the distance.</p></div>
+        <div><p className="eyebrow"><Flower2 size={15} /> Your mood forest</p><h1>Every feeling grows here.</h1><p>Each mood plants its own tree. A little sunlight, a little kindness. Make room for every feeling.</p></div>
         <img src={berryGarden} alt="" />
       </header>
       <div className="forest-layout">
-        <div className="garden-bed">
-          <div className="forest-title-row"><div><p className="label">Every mood becomes a tree</p><h2>Your living mood forest</h2><p>Today grows closest to you. Each older day settles deeper into the landscape.</p></div><span>{forest.length} {forest.length === 1 ? "tree" : "trees"}</span></div>
-          {garden.length > 0 ? (
-            <div className="forest-scene" onClick={() => setSelectedTreeId(null)}>
-              <span className="forest-sun" aria-hidden="true" />
-              <span className="forest-cloud forest-cloud-one" aria-hidden="true" />
-              <span className="forest-cloud forest-cloud-two" aria-hidden="true" />
-              <div className="forest-hills" aria-hidden="true" />
-              <div className="deep-tree-line" aria-hidden="true" />
-              <div className="forest-path" aria-hidden="true" />
-              {visibleTrees.map(({ item, sourceIndex, treeId, ageDays, left, scale, bottom, opacity, layer }) => (
-                <button
-                  type="button"
-                  className={`forest-tree tree-style-${(sourceIndex % 4) + 1} ${ageDays > 6 ? "is-distant" : ""} ${selectedTreeId === treeId ? "is-selected" : ""}`}
-                  key={treeId}
-                  aria-expanded={selectedTreeId === treeId}
-                  aria-label={`View ${item.plant || "Berry Tree"} details`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelectedTreeId((current) => current === treeId ? null : treeId);
-                  }}
-                  style={{
-                    "--tree-color": item.color || "#68b889",
-                    "--tree-scale": scale,
-                    "--tree-delay": `${Math.min(sourceIndex * 22, 440)}ms`,
-                    "--tree-left": `${left}%`,
-                    "--tree-bottom": `${bottom}%`,
-                    "--tree-opacity": opacity,
-                    "--tree-layer": layer,
-                    "--tree-tilt": `${((sourceIndex * 7) % 5) - 2}deg`,
-                    "--tree-sway-delay": `${-(sourceIndex % 6) * 0.65}s`,
-                  }}
-                >
-                  <div className="tree-visual" aria-hidden="true">
-                    <span className="tree-shadow" />
-                    <img className="tree-sprite" src={moodTreeImages[item.mood] || treeCalm} alt="" />
-                    <span className="tree-magic tree-magic-one" />
-                    <span className="tree-magic tree-magic-two" />
-                    <span className="tree-magic tree-magic-three" />
-                  </div>
-                </button>
-              ))}
-              <div className="forest-front-grass" aria-hidden="true" />
-              <span className="forest-click-hint"><Leaf size={13} /> Tap a tree to see its story</span>
-              {deepForestCount > 0 && <span className="deep-forest-count"><Leaf size={14} /> {deepForestCount} older {deepForestCount === 1 ? "tree lives" : "trees live"} beyond the mist</span>}
-              {selectedTree && (
-                <aside
-                  className="tree-popup"
-                  key={selectedTree.treeId}
-                  role="dialog"
-                  aria-label={`${selectedTree.item.plant || "Berry Tree"} details`}
-                  style={{ "--popup-color": selectedTree.item.color || "#68b889" }}
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <span className="tree-popup-glow" aria-hidden="true"><Sparkles size={18} /></span>
-                  <img src={moodTreeImages[selectedTree.item.mood] || treeCalm} alt="" />
-                  <div className="tree-popup-copy">
-                    <span className="tree-popup-kicker"><i /> Mood tree discovered</span>
-                    <strong>{selectedTree.item.plant || "Berry Tree"}</strong>
-                    <p>{selectedMoodMeta?.suggestion || "This tree grew from a moment you chose to check in with yourself."}</p>
-                    <div className="tree-popup-meta">
-                      <span>{selectedTree.item.label || selectedTree.item.mood}</span>
-                      <time dateTime={selectedTree.item.date}>{selectedTree.ageDays === 0 ? "Planted today" : selectedTree.item.date ? new Date(`${selectedTree.item.date}T00:00:00Z`).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }) : "Planted today"}</time>
-                    </div>
-                  </div>
-                  <button type="button" className="tree-popup-close" aria-label="Close tree details" onClick={() => setSelectedTreeId(null)}><X size={17} /></button>
-                </aside>
-              )}
-            </div>
-          ) : (
-            <div className="empty-garden">
-              <span><Leaf size={32} /></span>
-              <strong>Your garden is ready</strong>
-              <p>Visit Today to plant the first sprout.</p>
-              <Link to="/today" className="button button-primary">Check in <ArrowRight size={17} /></Link>
-            </div>
-          )}
-        </div>
+        <MoodGarden garden={garden} moods={moods} images={moodTreeImages} />
         <div className="panel garden-summary">
           <div className="garden-summary-title"><p className="label">Lifetime growth</p><h3>Your journey so far</h3></div>
           <MiniStat value={lifetime.checkIns} label="Mood check-ins" />
